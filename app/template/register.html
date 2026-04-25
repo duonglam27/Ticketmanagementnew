@@ -1,0 +1,91 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Đăng ký người dùng{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 500px;">
+    <h2 class="text-center text-danger mt-4 mb-4">ĐĂNG KÝ TÀI KHOẢN</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if err_msg %}
+        <div class="alert alert-danger">{{ err_msg }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        <div class="form-floating mb-3">
+            <input type="email" class="form-control" id="email" name="email"
+                   placeholder="Email" value="{{ request.form.get('email', '') }}" required>
+            <label for="email">Địa chỉ Email</label>
+        </div>
+
+        <div class="form-floating mb-3">
+            <input type="text" class="form-control" id="name" name="name"
+                   placeholder="Họ và tên" value="{{ request.form.get('name', '') }}" required>
+            <label for="name">Họ và tên</label>
+        </div>
+
+        <div class="form-floating mb-3">
+            <input type="password" class="form-control" id="password" name="password"
+                   placeholder="Mật khẩu" minlength="6" required>
+            <label for="password">Mật khẩu (tối thiểu 6 ký tự)</label>
+        </div>
+
+        <div class="form-floating mb-3">
+            <input type="password" class="form-control" id="confirm" name="confirm"
+                   placeholder="Xác nhận mật khẩu" minlength="6" required>
+            <label for="confirm">Xác nhận mật khẩu</label>
+        </div>
+
+        <div class="mb-3">
+            <label for="avatar" class="form-label fw-bold">Ảnh đại diện</label>
+            <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*">
+        </div>
+
+        <div class="text-center mb-3">
+            <img id="preview"
+                 src="{{ url_for('static', filename='SystemPicture/avatardefault.jpg') }}"
+                 class="rounded-circle shadow-sm border"
+                 width="120" height="120"
+                 style="object-fit: cover;">
+        </div>
+
+        <button type="submit" class="btn btn-danger w-100 py-2 fw-bold">ĐĂNG KÝ NGAY</button>
+
+        <div class="text-center mt-3">
+            <p class="small">Đã có tài khoản? <a href="{{ url_for('user_login') }}" class="text-danger">Đăng nhập</a></p>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Preview ảnh trước khi upload
+    document.getElementById('avatar').onchange = function (evt) {
+        const [file] = this.files;
+        if (file) {
+            document.getElementById('preview').src = URL.createObjectURL(file);
+        }
+    };
+
+    // Kiểm tra mật khẩu tại client để giảm tải cho server
+    document.querySelector("form").onsubmit = function (e) {
+        const pw = document.getElementById("password").value;
+        const cf = document.getElementById("confirm").value;
+
+        if (pw !== cf) {
+            alert("Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại!");
+            e.preventDefault(); // Ngăn submit form
+            return false;
+        }
+    };
+</script>
+{% endblock %}

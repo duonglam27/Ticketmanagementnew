@@ -1,0 +1,13 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f5f7fa;
+    color: #333;
+}
+
+a {
+    text-decoration: none;
+}
+
+img {
+    max-width: 100%;
+}

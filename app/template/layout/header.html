@@ -1,0 +1,85 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-success px-4 shadow-sm">
+
+    <!-- LOGO -->
+    <a class="navbar-brand fw-bold" href="/">TICKETEVENTS</a>
+
+    <!-- MOBILE TOGGLE -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarMain">
+
+        <form class="d-flex mx-auto w-50" action="{{ url_for('home') }}" method="get">
+    <input class="form-control me-2 rounded-pill"
+           type="search"
+           name="q"
+           placeholder="Tìm sự kiện, nghệ sĩ, địa điểm..."
+           value="{{ request.args.get('q', '') }}">
+    <button class="btn btn-light rounded-pill px-3" type="submit">
+        <i class="fa fa-search"></i>
+    </button>
+            </form>
+
+
+
+        <!-- RIGHT -->
+        <ul class="navbar-nav align-items-center ms-auto">
+
+            {% if current_user.is_authenticated %}
+
+                {% if current_user.is_organizer() %}
+                <li class="nav-item me-3">
+                    <a class="btn btn-outline-light "
+                    href="{{ url_for('event_create') }}" >Tạo sự kiện</a>
+                </li>
+                {% endif %}
+
+                <li class="nav-item me-3">
+                    <a class="nav-link" href="#">Vé của tôi</a>
+                </li>
+
+                <!-- USER -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center"
+                       href="#" data-bs-toggle="dropdown">
+
+                        <img src="{{ current_user.avatar or '/static/SystemPicture/avatardefault.jpg' }}"
+                             width="35" height="35"
+                             class="rounded-circle me-2"
+                             style="object-fit: cover;">
+
+                        <span>{{ current_user.name }}</span>
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+
+                        <li><a class="dropdown-item" href="#">Tài khoản</a></li>
+
+                        {% if current_user.is_admin() %}
+                        <li><a class="dropdown-item" href="#">Admin</a></li>
+                        {% endif %}
+
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="/logout">Đăng xuất</a></li>
+
+                    </ul>
+                </li>
+
+            {% else %}
+
+                <li class="nav-item me-2">
+                    <a class="btn btn-light" href="/login">Đăng nhập</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="btn btn-outline-light" href="/register">Đăng ký</a>
+                </li>
+
+            {% endif %}
+
+        </ul>
+
+    </div>
+</nav>
+

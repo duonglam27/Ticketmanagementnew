@@ -1,0 +1,56 @@
+/* LOGIN / REGISTER */
+.auth-form {
+    max-width: 500px;
+    margin: 50px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+}
+
+/* HOME BANNER */
+.banner {
+    border-radius: 15px;
+    overflow: hidden;
+}
+/* ===== Banner ===== */
+.banner-img {
+    height: 250px;
+    object-fit: cover;
+}
+
+.banner-box {
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+/* ===== Dot ===== */
+.dot {
+    height: 8px;
+    width: 8px;
+    margin: 0 4px;
+    background-color: #ccc;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.active {
+    background-color: #28a745;
+}
+
+/* ===== Event Card ===== */
+.event-card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: 0.3s;
+}
+
+.event-card img {
+    height: 180px;
+    object-fit: cover;
+}
+
+.event-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}

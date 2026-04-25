@@ -1,0 +1,124 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="container-fluid bg-black text-light p-0 min-vh-100">
+
+    <div class="header-section position-relative py-5" style="background-color: #1a1d20;">
+        <div class="container">
+            <div class="row align-items-stretch g-0 rounded-4 overflow-hidden shadow-lg" style="background: #2a2e32;">
+                <div class="col-md-5 p-4 d-flex flex-column justify-content-between">
+                    <div>
+                        <h2 class="fw-bold mb-3">{{ event.name }}</h2>
+                        <div class="mb-2 opacity-75 small">
+                            <i class="far fa-clock me-2"></i>{{ event.showings[0].start_time.strftime('%H:%M - %d/%m/%Y') if event.showings else 'Đang cập nhật' }}
+                        </div>
+                        <div class="opacity-75 small">
+                            <i class="fas fa-map-marker-alt me-2"></i>{{ event.location_name }}, {{ event.city }}
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="text-success fw-bold fs-4 mb-2">
+                            Giá từ {{ "{:,.0f}".format(min_price) }} đ >
+                        </div>
+
+                        {% if is_finished %}
+                            <button class="btn btn-secondary w-100 py-2 rounded-2 disabled opacity-50">
+                                SỰ KIỆN ĐÃ KẾT THÚC
+                            </button>
+                        {% else %}
+                            <a href="#tickets-section" class="btn btn-success w-100 py-2 rounded-2 fw-bold text-uppercase shadow-sm">
+                                MUA VÉ NGAY
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <img src="{{ event.image_banner }}" class="w-100 h-100 object-fit-cover" alt="Banner">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container py-4">
+        <div class="row g-4">
+
+            <div class="col-lg-8">
+                <div class="card bg-dark border-0 rounded-3 mb-4">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4">
+                        <h5 class="text-success fw-bold">Giới thiệu</h5>
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        <div class="description-box text-secondary small lh-lg">
+                            {{ event.description | safe }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-dark border-0 rounded-3">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between">
+                        <h5 class="text-success fw-bold">Lịch diễn</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary"><i class="fas fa-list"></i></button>
+                            <button class="btn btn-outline-secondary"><i class="fas fa-th"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body px-4 pb-4">
+                        {% for showing in event.showings %}
+                        <div class="showing-card p-3 rounded-2 border border-secondary mb-3 bg-secondary bg-opacity-10">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">{{ showing.start_time.strftime('%H:%M - %A') }}</div>
+                                    <div class="small text-muted">{{ showing.start_time.strftime('%d Tháng %m, %Y') }}</div>
+                                </div>
+                                <a href="{{ url_for('booking', showing_id=showing.id) }}" class="btn btn-sm btn-outline-success px-4 rounded-pill">
+                                    Mua vé
+                                </a>
+                            </div>
+
+                            <div class="mt-3 border-top border-secondary pt-3">
+                                <small class="text-muted d-block mb-2">Thông tin vé</small>
+                                {% for t_type in showing.ticket_types %}
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-black bg-opacity-25">
+                                    <span class="small">{{ t_type.name }}</span>
+                                    <div class="text-end">
+                                        <div class="text-success fw-bold small">{{ "{:,.0f}".format(t_type.base_price) }} đ</div>
+                                        <span class="badge bg-danger p-1" style="font-size: 0.6rem;">Vé không bán online</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 20px;">
+                    <img src="https://images.tkbcdn.com/1/400/800/upload/event_banner/2024/11/05/85F14E.png" class="w-100 rounded-3 shadow mb-3" alt="Promotion">
+
+                    <div class="card bg-dark border-0 p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="{{ event.organizer_logo }}" class="rounded-circle" width="50" height="50">
+                            <div>
+                                <div class="small text-muted">Tổ chức bởi</div>
+                                <div class="fw-bold">{{ event.organizer_brand }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    body { background-color: #000; }
+    .object-fit-cover { object-fit: cover; }
+    .showing-card { transition: transform 0.2s; }
+    .showing-card:hover { transform: scale(1.01); border-color: #198754 !important; }
+    .btn-outline-success:hover { background-color: #198754; color: white; }
+</style>
+{% endblock %}
