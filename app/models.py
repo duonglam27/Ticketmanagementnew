@@ -38,6 +38,11 @@ class PaymentMethod(enum.Enum):
     MOMO = "momo"
     VNPAY = "vnpay"
 
+class EventStatus(enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
 
 # =========================
 # USER
@@ -87,6 +92,7 @@ class Event(db.Model):
     location_name = db.Column(db.String(100))  # e.g., "Sân vận động Mỹ Đình"
     city = db.Column(db.String(50))  # e.g., "Hà Nội"
     event_type = db.Column(db.String(20))  # "Offline" or "Online"
+    status = db.Column(db.Enum(EventStatus), default=EventStatus.PENDING)
 
     # Dual Image Support
     image_poster = db.Column(db.String(255))  # Vertical (720x958)

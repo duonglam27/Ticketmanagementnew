@@ -1,82 +1,122 @@
-{% extends 'admin/master.html' %}
+{% extends 'admin/baseadmin.html' %}
 
-{% block body %}
+{% block page_title %}Dashboard{% endblock %}
 
-{% if current_user.is_authenticated %}
-<div class="mb-5">
-    <h1 class="text-center text-info ">TRANG CHỦ QUẢN TRỊ CHUYẾN BAY</h1>
-    <h2 class="text-center">
-        {% if current_user.isAdmin() %}
-        Chào mừng <span class="text-danger">{{ current_user.username }}</span> quay lại trang quản trị
-        {% else %}
-        <span class="text-danger">{{ current_user.username }}</span> không có quyền admin
-        {% endif %}
-    </h2>
-</div>
+{% block content %}
 
-{% if current_user.isAdmin() %}
-<div class="row">
-    <div class="col-md-5 col-sm-12">
-        <div class="card">
-            <div class="card-header">
-                Thống Kê Chuyến Bay
+<div class="container-fluid">
+
+    <!-- 🔥 HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-black">Quản trị hệ thống</h3>
+            <p class="text-secondary small mb-0">Quản lý sự kiện và kiểm duyệt</p>
+        </div>
+    </div>
+
+    <!-- 🔥 DASHBOARD STATS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 p-3">
+                <h6 class="text-secondary">Tổng sự kiện</h6>
+                <h4 class="fw-bold text-black">{{ total_events }}</h4>
             </div>
-            <div class="card-body">
-                <table class="table table-hover table-striped">
-                    <thead>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 p-3">
+                <h6 class="text-secondary">Chờ duyệt</h6>
+                <h4 class="fw-bold text-warning">{{ pending_events }}</h4>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 p-3">
+                <h6 class="text-secondary">Đã duyệt</h6>
+                <h4 class="fw-bold text-success">{{ approved_events }}</h4>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 p-3">
+                <h6 class="text-secondary">Bị từ chối</h6>
+                <h4 class="fw-bold text-danger">{{ rejected_events }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 DANH SÁCH SỰ KIỆN -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+
+            <h5 class="fw-bold mb-3">Danh sách sự kiện</h5>
+
+            <div class="table-responsive">
+                <table class="table align-middle table-hover">
+                    <thead class="table-light">
                         <tr>
-                            <th>Id</th>
-                            <th>Tên chuyến bay</th>
-                            <th>Lượt bay</th>
+                            <th>ID</th>
+                            <th>Tên sự kiện</th>
+                            <th>Danh mục</th>
+                            <th>Thành phố</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        {% for s in stats %}
+                        {% for e in events %}
                         <tr>
-                            <td>{{ s[0] }}</td>
-                            <td>{{ s[1] }}</td>
-                            <td>{{ s[2] }}</td>
+                            <td>{{ e.id }}</td>
+                            <td class="fw-semibold">{{ e.name }}</td>
+                            <td>{{ e.category }}</td>
+                            <td>{{ e.city }}</td>
+
+                            <!-- STATUS -->
+                            <td>
+                                {% if e.status.value == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                                {% elif e.status.value == 'approved' %}
+                                    <span class="badge bg-success">Đã duyệt</span>
+                                {% elif e.status.value == 'rejected' %}
+                                    <span class="badge bg-danger">Từ chối</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- ACTION -->
+                            <td>
+                                <a href="{{ url_for('event_detail', event_id=e.id) }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    Xem
+                                </a>
+
+                                {% if e.status.value == 'pending' %}
+                                <a href="{{ url_for('admin.approve_event', event_id=e.id) }}"
+                                   class="btn btn-sm btn-success">
+                                    Duyệt
+                                </a>
+
+                                <a href="{{ url_for('admin.reject_event', event_id=e.id) }}"
+                                   class="btn btn-sm btn-danger">
+                                    Từ chối
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-secondary py-4">
+                                Không có sự kiện nào
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
         </div>
     </div>
-    <div class="col-md-7 col-sm-12">
-        <canvas id="flightStats"></canvas>
-    </div>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
-<script>
-    let labels = [];
-    let data = [];
-    {% for s in stats %}
-    {% if s[2] %}
-    labels.push('{{ s[1] }}');
-    data.push({{ s[2] }});
-    {% endif %}
-    {% endfor %}
-    window.onload = function() {
-        drawFlightChart(labels, data);
-    }
-</script>
-{% endif %}
-{% else %}
-
-<form method="post" action="{{ url_for('admin_login') }}">
-    <div class="mb-3 mt-3">
-        <label for="username" class="form-label">Tên đăng nhập:</label>
-        <input type="text" class="form-control" id="username" placeholder="Nhập tên đăng nhập" name="username">
-    </div>
-    <div class="mb-3">
-        <label for="password" class="form-label">Mật khẩu:</label>
-        <input type="password" class="form-control" id="password" placeholder="Nhập mật khẩu" name="password">
-    </div>
-    <button type="submit" class="btn btn-primary">Đăng nhập</button>
-</form>
-
-{% endif %}
 {% endblock %}

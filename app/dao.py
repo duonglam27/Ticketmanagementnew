@@ -1,6 +1,6 @@
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import User, Event, RoleEnum, Showing, TicketType, Seat, Ticket, TicketStatus
+from app.models import User, Event, RoleEnum, Showing, TicketType, Seat, Ticket, TicketStatus, EventStatus
 from sqlalchemy import or_
 # --- USER DAO ---
 
@@ -61,7 +61,8 @@ def create_event(name, description, category, location, event_type, image, organ
 
 def get_all_events(limit=None):
     """Lấy danh sách sự kiện, mặc định mới nhất lên đầu"""
-    query = Event.query.order_by(Event.created_at.desc())
+    query = Event.query.filter(Event.status == EventStatus.APPROVED) \
+        .order_by(Event.created_at.desc())
     if limit:
         query = query.limit(limit)
     return query.all()
@@ -72,6 +73,10 @@ def get_events(kw=None, category=None, organizer_id=None, page=1, per_page=12):
     Tìm kiếm và lọc sự kiện với phân trang.
     """
     query = Event.query
+
+    # 🔥 CHỈ USER mới filter APPROVED
+    if not organizer_id:
+        query = query.filter(Event.status == EventStatus.APPROVED)
 
     if kw:
         query = query.filter(or_(
@@ -86,7 +91,6 @@ def get_events(kw=None, category=None, organizer_id=None, page=1, per_page=12):
     if organizer_id:
         query = query.filter(Event.organizer_id == organizer_id)
 
-    # Mặc định sự kiện mới nhất hoặc sắp diễn ra lên đầu
     query = query.order_by(Event.created_at.desc())
 
     return query.paginate(page=page, per_page=per_page)
@@ -149,7 +153,10 @@ def create_ticket_type(showing_id, name, price, quantity):
 
 def get_events_with_showings():
     """Lấy sự kiện và nạp sẵn luôn danh sách suất diễn để tăng tốc độ load"""
-    return Event.query.options(joinedload(Event.showings)).all()
+    return Event.query \
+        .filter(Event.status == EventStatus.APPROVED) \
+        .options(joinedload(Event.showings)) \
+        .all()
 
 
 
@@ -263,17 +270,15 @@ def get_tickets_by_showing(showing_id):
 
 
 def search_events(keyword=None, category=None):
-    query = Event.query
+    query = Event.query.filter(Event.status == EventStatus.APPROVED)
 
     if keyword:
-        # Sử dụng ilike kết hợp với f-string để bọc ký tự đại diện %
         search = f"%{keyword}%"
         query = query.filter(
             Event.name.ilike(search) |
             Event.location_name.ilike(search)
         )
 
-    # Chỉ lọc nếu người dùng chọn một danh mục cụ thể
     if category and category != "Tất cả":
         query = query.filter(Event.category == category)
 

@@ -1,0 +1,76 @@
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}Quản lý sự kiện{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- FILTER -->
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+            <input type="text" name="kw" class="form-control" placeholder="Tìm sự kiện...">
+        </div>
+
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="">-- Trạng thái --</option>
+                <option value="pending">Chờ duyệt</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Từ chối</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Lọc</button>
+        </div>
+    </form>
+
+    <!-- TABLE -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên</th>
+                        <th>Danh mục</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for e in events %}
+                    <tr>
+                        <td>{{ e.id }}</td>
+                        <td>{{ e.name }}</td>
+                        <td>{{ e.category }}</td>
+
+                        <td>
+                            <span class="badge 
+                                {% if e.status.value == 'pending' %}bg-warning
+                                {% elif e.status.value == 'approved' %}bg-success
+                                {% else %}bg-danger
+                                {% endif %}">
+                                {{ e.status.value }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {% if e.status.value == 'pending' %}
+                                <a href="{{ url_for('admin.approve_event', event_id=e.id) }}" class="btn btn-success btn-sm">✔</a>
+                                <a href="{{ url_for('admin.reject_event', event_id=e.id) }}" class="btn btn-danger btn-sm">✖</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -17,7 +17,7 @@ def create_app():
 
     # DATABASE
     app.config['SQLALCHEMY_DATABASE_URI'] = \
-        'mysql+pymysql://root:%s@localhost/ticketmanagementdb?charset=utf8mb4' % quote('lam27072004Aa')
+        'mysql+pymysql://root:%s@localhost/ticketmanagementdb?charset=utf8mb4' % quote('123456789')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # INIT EXTENSIONS
@@ -50,6 +50,7 @@ def create_app():
 
     # IMPORT ROUTES
     from app.app import init_routes
+    from app import models
     init_routes(app)
 
     return app

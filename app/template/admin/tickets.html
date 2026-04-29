@@ -1,0 +1,39 @@
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}Vé & Check-in{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Mã vé</th>
+                <th>Trạng thái</th>
+                <th>Check-in</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for t in tickets %}
+            <tr>
+                <td>{{ t.ticket_code }}</td>
+                <td>{{ t.status.value }}</td>
+                <td>
+                    {% if not t.checked_in %}
+                        <a href="{{ url_for('admin.checkin', ticket_id=t.id) }}"
+                           class="btn btn-success btn-sm">Check-in</a>
+                    {% else %}
+                        <span class="text-success">✔</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}Quản lý người dùng{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+
+            <h5 class="fw-bold mb-3">Danh sách người dùng</h5>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Email</th>
+                            <th>Tên</th>
+                            <th>Vai trò</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    {% for u in users %}
+                        <tr>
+                            <td>{{ u.email }}</td>
+                            <td>{{ u.name }}</td>
+
+                            <!-- ROLE -->
+                            <td>
+                                {% if u.role.value == 'admin' %}
+                                    <span class="badge bg-danger">Admin</span>
+                                {% elif u.role.value == 'organizer' %}
+                                    <span class="badge bg-primary">Organizer</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">User</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- STATUS -->
+                            <td>
+                                {% if u.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-dark">Locked</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- ACTION -->
+                            <td>
+
+                                <!-- ❌ Không cho sửa admin -->
+                                {% if u.role.value != 'admin' %}
+
+                                    <!-- Promote -->
+                                    {% if u.role.value == 'user' %}
+                                        <a href="{{ url_for('admin.make_organizer', user_id=u.id) }}"
+                                           class="btn btn-sm btn-success">
+                                            USER->ORGANIZER
+                                        </a>
+                                    {% endif %}
+
+                                    <!-- Demote -->
+                                    {% if u.role.value == 'organizer' %}
+                                        <a href="{{ url_for('admin.make_user', user_id=u.id) }}"
+                                           class="btn btn-sm btn-warning">
+                                            ORGANIZER->USER
+                                        </a>
+                                    {% endif %}
+
+                                    <!-- Lock / Unlock -->
+                                    <a href="{{ url_for('admin.toggle_user', user_id=u.id) }}"
+                                       class="btn btn-sm btn-outline-danger">
+                                        {% if u.is_active %}
+                                            Khóa
+                                        {% else %}
+                                            Mở
+                                        {% endif %}
+                                    </a>
+
+                                {% else %}
+                                    <span class="text-muted">Không thể sửa</span>
+                                {% endif %}
+
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-secondary py-4">
+                                Không có người dùng
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

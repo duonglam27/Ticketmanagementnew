@@ -65,14 +65,20 @@ def init_routes(app):
             email = request.form.get('email')
             password = request.form.get('password')
 
-            # Gọi Service để xác thực
             user = service.authenticate_user(email, password)
 
             if user:
                 flask_login_user(user)
-                # Xử lý tham số 'next' nếu có (để quay lại trang trước đó)
+
                 next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('home'))
+                if next_page:
+                    return redirect(next_page)
+
+                # 🔥 PHÂN QUYỀN
+                if user.is_admin():
+                    return redirect(url_for('admin.admin_dashboard'))
+                else:
+                    return redirect(url_for('home'))
 
             err_msg = 'Email hoặc mật khẩu không chính xác'
 
