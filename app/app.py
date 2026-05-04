@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_user as flask_login_user, logout_user, current_user, login_required
 from app import dao, login, service
@@ -74,7 +76,7 @@ def init_routes(app):
                 if next_page:
                     return redirect(next_page)
 
-                # 🔥 PHÂN QUYỀN
+                # PHÂN QUYỀN
                 if user.is_admin():
                     return redirect(url_for('admin.admin_dashboard'))
                 else:
@@ -89,7 +91,7 @@ def init_routes(app):
         logout_user()
         return redirect(url_for('user_login'))
 
-    @app.route('/create-event', methods=['GET', 'POST'])
+    @app.route('/organizer/create-event', methods=['GET', 'POST'])
     @login_required
     def event_create():
         if request.method == 'POST':
@@ -104,9 +106,45 @@ def init_routes(app):
             except Exception as e:
                 flash(f"Lỗi hệ thống: {str(e)}", "danger")
 
-        return render_template('create_event.html')
+        return render_template('organizer/create_event.html')
 
-    from datetime import datetime
+    @app.route('/organizer/dashboard')
+    @login_required
+    def organizer_dashboard():
+        data = service.get_dashboard_service(current_user.id)
+
+        return render_template(
+            'organizer/dashboard.html',
+            summary=data["summary"],
+            events=data["events"],
+            active_page='dashboard'
+        )
+
+    @app.route('/organizer/events')
+    @login_required
+    def organizer_events():
+        tab = request.args.get('tab', 'upcoming')
+
+        events = service.get_my_events(current_user.id, tab)
+
+        return render_template(
+            'organizer/my_events.html',
+            events=events,
+            active_tab=tab,
+            active_page='events'
+        )
+
+    @app.route('/organizer/reports')
+    @login_required
+    def reports():
+        return render_template('organizer/reports.html')
+
+    @app.route('/organizer/terms')
+    @login_required
+    def terms():
+        return render_template('organizer/setting.html')
+
+
 
     @app.route('/event/<int:event_id>')
     def event_detail(event_id):
@@ -145,4 +183,6 @@ def init_routes(app):
 
         # 2. Render ra trang chọn ghế
         return render_template('booking.html', showing=showing, tickets=tickets)
+
+
 

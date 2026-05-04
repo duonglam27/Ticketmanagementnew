@@ -1,0 +1,61 @@
+{% extends 'organizer/base_org.html' %}
+{% set active_page = 'events' %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- TITLE -->
+    <h3 class="text-light fw-bold mb-4">Sự kiện của tôi</h3>
+
+    <!-- FILTER -->
+    <div class="d-flex gap-2 mb-4">
+        <a href="?tab=upcoming" class="btn {% if active_tab=='upcoming' %}btn-success{% else %}btn-outline-light{% endif %}">Sắp tới</a>
+        <a href="?tab=past" class="btn {% if active_tab=='past' %}btn-success{% else %}btn-outline-light{% endif %}">Đã qua</a>
+        <a href="?tab=pending" class="btn {% if active_tab=='pending' %}btn-success{% else %}btn-outline-light{% endif %}">Chờ duyệt</a>
+        <a href="?tab=draft" class="btn {% if active_tab=='draft' %}btn-success{% else %}btn-outline-light{% endif %}">Nháp</a>
+    </div>
+
+    <!-- LIST -->
+    <div class="row g-4">
+        {% for e in events %}
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="card bg-dark text-light border-secondary h-100">
+
+                <!-- IMAGE -->
+                <img src="{{ e.banner or '/static/uploads/default.jpg' }}"
+                     style="height:150px; object-fit:cover;">
+
+                <div class="card-body">
+                    <h6 class="fw-bold text-truncate">{{ e.name }}</h6>
+
+                    <!-- DATE -->
+                    <div class="small text-secondary mb-2">
+                        {{ e.start_time.strftime('%d/%m/%Y') if e.start_time else 'Chưa có lịch' }}
+                    </div>
+
+                    <!-- STATUS -->
+                    <span class="badge
+                        {% if e.status == 'approved' %}bg-success
+                        {% elif e.status == 'pending' %}bg-warning
+                        {% elif e.status == 'rejected' %}bg-danger
+                        {% else %}bg-secondary
+                        {% endif %}">
+                        {{ e.status }}
+                    </span>
+                </div>
+
+                <!-- ACTION -->
+                <div class="card-footer d-flex gap-2">
+                    <a href="#" class="btn btn-sm btn-outline-light w-100">Sửa</a>
+                    <a href="#" class="btn btn-sm btn-success w-100">Quản lý</a>
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+{% endblock %}

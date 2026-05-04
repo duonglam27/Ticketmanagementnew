@@ -1,5 +1,7 @@
+from datetime import datetime
+
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.models import RoleEnum
+from app.models import RoleEnum, EventStatus
 from app import dao, db
 import cloudinary.uploader
 import cloudinary.uploader
@@ -141,3 +143,67 @@ def upload_to_cloud(file, folder_name):
         res = cloudinary.uploader.upload(file, folder=f"ticket_app/{folder_name}")
         return res.get('secure_url')
     return "/static/images/default.jpg"
+
+
+def get_dashboard_service(user_id):
+    summary = dao.get_dashboard_summary(user_id)
+    events = dao.get_dashboard_events(user_id)
+
+    event_list = []
+    for e in events:
+        event_id, name,banner, total, sold, revenue = e
+
+        progress = int((sold / total) * 100) if total else 0
+
+        event_list.append({
+            "id": event_id,
+            "name": name,
+            "banner": banner,
+            "total": total or 0,
+            "sold": sold or 0,
+            "revenue": float(revenue or 0),
+            "progress": progress
+        })
+
+    return {
+        "summary": {
+            "total_events": summary.total_events or 0,
+            "total_tickets": summary.total_tickets or 0,
+            "sold_tickets": summary.sold_tickets or 0,
+            "revenue": float(summary.total_revenue or 0)
+        },
+        "events": event_list
+    }
+
+
+def get_my_events(user_id, tab):
+    events = dao.get_events_by_user(user_id)
+    
+    result = []
+    now = datetime.now()
+
+    for e in events:
+        # lấy ngày gần nhất
+        start_time = None
+        if e.showings:
+            start_time = min(s.start_time for s in e.showings)
+
+        # ===== FILTER TAB =====
+        if tab == 'upcoming' and start_time and start_time < now:
+            continue
+        if tab == 'past' and start_time and start_time >= now:
+            continue
+        if tab == 'pending' and e.status != EventStatus.PENDING:
+            continue
+        if tab == 'draft' and e.status != EventStatus.REJECTED:
+            continue
+
+        result.append({
+            "id": e.id,
+            "name": e.name,
+            "banner": e.image_banner,
+            "start_time": start_time,
+            "status": e.status.value
+        })
+
+    return result

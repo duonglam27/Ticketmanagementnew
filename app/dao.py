@@ -1,7 +1,11 @@
+import uuid
+
 from sqlalchemy.orm import joinedload
 from app import db
-from app.models import User, Event, RoleEnum, Showing, TicketType, Seat, Ticket, TicketStatus, EventStatus
-from sqlalchemy import or_
+from app.models import User, Event, RoleEnum, Showing, TicketType, Seat, Ticket, TicketStatus, EventStatus, Order, OrderItem, OrderStatus
+from sqlalchemy import or_, func, case
+
+
 # --- USER DAO ---
 
 def get_user_by_email(email):
@@ -101,12 +105,12 @@ def get_event_by_id(event_id):
     return db.session.get(Event, event_id)
 
 def get_event_details(event_id):
-    """
-    Lấy chi tiết sự kiện kèm theo tất cả suất diễn (showings)
-    và loại vé (ticket_types) liên quan.
-    """
+    # Load 1 lần duy nhất cho toàn bộ dữ liệu cần thiết
     return db.session.query(Event)\
-        .options(joinedload(Event.showings).joinedload(Showing.ticket_types))\
+        .options(
+            joinedload(Event.showings)
+            .joinedload(Showing.ticket_types)
+        )\
         .filter(Event.id == event_id)\
         .first()
 
@@ -232,6 +236,7 @@ def init_tickets_bulk_nc(showing_id, ticket_type_id, seat_objects):
     # Trạng thái mặc định là AVAILABLE (Sẵn sàng bán)
     mappings = [
         {
+            "ticket_code": str(uuid.uuid4()),
             "showing_id": showing_id,
             "ticket_type_id": ticket_type_id,
             "seat_id": seat.id,
@@ -288,3 +293,63 @@ def search_events(keyword=None, category=None):
 def get_all_categories():
     # Lấy danh sách các loại sự kiện duy nhất để đổ vào dropdown lọc
     return db.session.query(Event.category).distinct().all()
+
+def get_events_with_stats(user_id):
+    # Lấy sự kiện của user, đếm tổng vé và tổng số vé đã bán
+    return db.session.query(
+        Event,
+        func.count(Ticket.id).label('total_tickets'),
+        func.sum(case((Ticket.status == 'SOLD', 1), else_=0)).label('sold_tickets'),
+        func.sum(case((Ticket.status == 'SOLD', Ticket.price), else_=0)).label('revenue')
+    ).join(Showing).join(Ticket).filter(Event.user_id == user_id)\
+     .group_by(Event.id).all()
+
+def get_events_by_user(user_id):
+    return Event.query.filter_by(organizer_id=user_id).all()
+
+
+def get_dashboard_summary(user_id):
+    return db.session.query(
+        func.count(func.distinct(Event.id)).label('total_events'),
+        func.count(Ticket.id).label('total_tickets'),
+        func.sum(
+            case((Ticket.status == TicketStatus.SOLD, 1), else_=0)
+        ).label('sold_tickets'),
+        func.sum(OrderItem.price).label('total_revenue')
+    )\
+    .join(Showing, Showing.event_id == Event.id)\
+    .join(Ticket, Ticket.showing_id == Showing.id)\
+    .outerjoin(OrderItem, OrderItem.ticket_id == Ticket.id)\
+    .outerjoin(Order, Order.id == OrderItem.order_id)\
+    .filter(Event.organizer_id == user_id)\
+    .filter(
+        (Order.status == OrderStatus.PAID) | (Order.id == None)
+    )\
+    .first()
+
+
+def get_dashboard_events(user_id):
+    return (
+        db.session.query(
+            Event.id,
+            Event.name,
+            Event.image_banner,
+            func.count(Ticket.id).label('total_tickets'),
+            func.sum(
+                case((Ticket.status == TicketStatus.SOLD, 1), else_=0)
+            ).label('sold_tickets'),
+            func.sum(OrderItem.price).label('revenue')
+        )
+        .join(Showing, Showing.event_id == Event.id)
+        .join(Ticket, Ticket.showing_id == Showing.id)
+        .outerjoin(OrderItem, OrderItem.ticket_id == Ticket.id)
+        .outerjoin(Order, Order.id == OrderItem.order_id)
+        .filter(Event.organizer_id == user_id)
+        .filter(
+            (Order.status == OrderStatus.PAID) | (Order.id == None)
+        )
+        .group_by(Event.id)
+        .all()
+    )
+
+

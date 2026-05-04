@@ -1,0 +1,80 @@
+from app import db
+from models import User, Event, Showing, Seat, TicketType, Ticket, Order, OrderItem, Payment
+from datetime import datetime, timedelta
+import uuid
+
+# Reset database (chỉ dùng khi chưa có dữ liệu thật)
+db.drop_all()
+db.create_all()
+
+# 1. Users
+u_admin = User(email="admin@example.com", name="Admin", password_hash="pw", role="ADMIN")
+u_org = User(email="organizer@example.com", name="Organizer", password_hash="pw", role="ORGANIZER")
+u_user = User(email="user@example.com", name="User", password_hash="pw", role="USER")
+db.session.add_all([u_admin, u_org, u_user])
+db.session.commit()
+
+# 2. Events
+e1 = Event(name="Concert Hà Nội", category="Music", city="Hà Nội", event_type="Offline", organizer_id=u_org.id)
+e2 = Event(name="Tech Conference", category="Conference", city="HCM", event_type="Offline", organizer_id=u_org.id)
+e3 = Event(name="Online Webinar", category="Education", city="Online", event_type="Online", organizer_id=u_org.id)
+db.session.add_all([e1, e2, e3])
+db.session.commit()
+
+# 3. Showings
+s1 = Showing(event_id=e1.id, start_time=datetime.utcnow() + timedelta(days=7))
+s2 = Showing(event_id=e2.id, start_time=datetime.utcnow() + timedelta(days=14))
+s3 = Showing(event_id=e3.id, start_time=datetime.utcnow() + timedelta(days=21))
+db.session.add_all([s1, s2, s3])
+db.session.commit()
+
+# 4. Seats
+for showing in [s1, s2, s3]:
+    for i in range(1, 6):
+        db.session.add(Seat(showing_id=showing.id, seat_number=f"S{i}"))
+db.session.commit()
+
+# 5. Ticket Types
+tt1 = TicketType(showing_id=s1.id, name="VIP", base_price=100, total_quantity=50)
+tt2 = TicketType(showing_id=s1.id, name="Standard", base_price=50, total_quantity=200)
+tt3 = TicketType(showing_id=s2.id, name="Student", base_price=30, total_quantity=100)
+db.session.add_all([tt1, tt2, tt3])
+db.session.commit()
+
+# 6. Tickets (tạo trước khi OrderItem)
+tickets = []
+for tt in [tt1, tt2, tt3]:
+    for i in range(3):
+        t = Ticket(ticket_code=str(uuid.uuid4()), showing_id=tt.showing_id, ticket_type_id=tt.id)
+        tickets.append(t)
+db.session.add_all(tickets)
+db.session.commit()
+
+# 7. Orders
+o1 = Order(user_id=u_user.id, status="PENDING", total_amount=50)
+o2 = Order(user_id=u_user.id, status="PAID", total_amount=100)
+o3 = Order(user_id=u_user.id, status="CANCELLED", total_amount=0)
+db.session.add_all([o1, o2, o3])
+db.session.commit()
+
+
+# 9. Payments
+p1 = Payment(order_id=o1.id, amount=50, method="CASH", status="PENDING", transaction_id="TX001")
+p2 = Payment(order_id=o2.id, amount=100, method="MOMO", status="SUCCESS", transaction_id="TX002", paid_at=datetime.utcnow())
+p3 = Payment(order_id=o3.id, amount=30, method="VNPAY", status="FAILED", transaction_id="TX003", paid_at=datetime.utcnow())
+db.session.add_all([p1, p2, p3])
+db.session.commit()
+
+print("Seed data inserted successfully!")
+
+
+
+
+
+
+# 8. Order Items (tham chiếu ticket đã tồn tại)
+oi1 = OrderItem(order_id=o1.id, ticket_id=tickets[0].id, price=50)
+oi2 = OrderItem(order_id=o2.id, ticket_id=tickets[1].id, price=100)
+oi3 = OrderItem(order_id=o3.id, ticket_id=tickets[2].id, price=30)
+db.session.add_all([oi1, oi2, oi3])
+db.session.commit()

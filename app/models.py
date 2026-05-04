@@ -106,6 +106,16 @@ class Event(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     showings = relationship('Showing', backref='event')
 
+    @property
+    def min_price(self):
+        prices = [t.base_price for s in self.showings for t in s.ticket_types]
+        return min(prices) if prices else 0
+
+    @property
+    def is_finished(self):
+        # Kiểm tra nếu tất cả suất diễn đều đã qua thời gian hiện tại
+        return all(s.start_time < datetime.now() for s in self.showings)
+
 # =========================
 # SHOWING
 # =========================
