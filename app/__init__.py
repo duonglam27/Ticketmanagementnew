@@ -49,8 +49,9 @@ def create_app():
     }
 
     # IMPORT ROUTES
-    from app.app import init_routes
+    from app.index import init_routes
     from app import models
     init_routes(app)
+
 
     return app

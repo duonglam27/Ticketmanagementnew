@@ -1,61 +1,135 @@
 {% extends 'organizer/base_org.html' %}
 {% set active_page = 'events' %}
 
-{% block content %}
+{% block title %}Sự kiện của tôi{% endblock %}
 
+{% block content %}
 <div class="container-fluid">
 
-    <!-- TITLE -->
-    <h3 class="text-light fw-bold mb-4">Sự kiện của tôi</h3>
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-light fw-bold">Sự kiện của tôi</h3>
 
-    <!-- FILTER -->
-    <div class="d-flex gap-2 mb-4">
-        <a href="?tab=upcoming" class="btn {% if active_tab=='upcoming' %}btn-success{% else %}btn-outline-light{% endif %}">Sắp tới</a>
-        <a href="?tab=past" class="btn {% if active_tab=='past' %}btn-success{% else %}btn-outline-light{% endif %}">Đã qua</a>
-        <a href="?tab=pending" class="btn {% if active_tab=='pending' %}btn-success{% else %}btn-outline-light{% endif %}">Chờ duyệt</a>
-        <a href="?tab=draft" class="btn {% if active_tab=='draft' %}btn-success{% else %}btn-outline-light{% endif %}">Nháp</a>
+        <div class="d-flex gap-2">
+            <a href="?tab=upcoming"
+               class="btn btn-sm {% if active_tab=='upcoming' %}btn-light{% else %}btn-outline-light{% endif %}">
+                Sắp diễn ra
+            </a>
+
+            <a href="?tab=past"
+               class="btn btn-sm {% if active_tab=='past' %}btn-light{% else %}btn-outline-light{% endif %}">
+                Đã diễn ra
+            </a>
+
+            <a href="?tab=pending"
+               class="btn btn-sm {% if active_tab=='pending' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                Chờ duyệt
+            </a>
+
+            <a href="?tab=rejected"
+               class="btn btn-sm {% if active_tab=='rejected' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                Bị từ chối
+            </a>
+        </div>
     </div>
 
     <!-- LIST -->
     <div class="row g-4">
-        {% for e in events %}
+
+        {% for item in events %}
         <div class="col-md-6 col-lg-4 col-xl-3">
-            <div class="card bg-dark text-light border-secondary h-100">
+
+            <div class="card bg-dark text-light border-secondary h-100 shadow-sm">
 
                 <!-- IMAGE -->
-                <img src="{{ e.banner or '/static/uploads/default.jpg' }}"
-                     style="height:150px; object-fit:cover;">
-
-                <div class="card-body">
-                    <h6 class="fw-bold text-truncate">{{ e.name }}</h6>
-
-                    <!-- DATE -->
-                    <div class="small text-secondary mb-2">
-                        {{ e.start_time.strftime('%d/%m/%Y') if e.start_time else 'Chưa có lịch' }}
-                    </div>
+                <div class="position-relative">
+                    <img src="{{ item.banner }}"
+                         class="card-img-top"
+                         style="height:150px; object-fit:cover;">
 
                     <!-- STATUS -->
-                    <span class="badge
-                        {% if e.status == 'approved' %}bg-success
-                        {% elif e.status == 'pending' %}bg-warning
-                        {% elif e.status == 'rejected' %}bg-danger
-                        {% else %}bg-secondary
-                        {% endif %}">
-                        {{ e.status }}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-{{ item.status_class }}">
+                        {{ item.status_label }}
                     </span>
                 </div>
 
+                <div class="card-body">
+
+                    <h6 class="fw-bold text-truncate mb-1">
+                        {{ item.name }}
+                    </h6>
+
+                    <div class="small text-secondary mb-2">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        {{ item.start_time.strftime('%d/%m/%Y') if item.start_time else 'Chưa có lịch' }}
+                    </div>
+
+                    <div class="small text-secondary mb-1">
+                        {{ item.sold }} / {{ item.total }} vé
+                    </div>
+
+                    <div class="progress mb-2 bg-secondary" style="height:6px;">
+                        <div class="progress-bar
+                            {% if item.progress < 30 %}bg-danger
+                            {% elif item.progress < 70 %}bg-warning
+                            {% else %}bg-success
+                            {% endif %}
+                        "
+                             style="width: {{ item.progress }}%">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-info">{{ item.progress }}%</span>
+                        <span class="text-warning fw-bold">
+                            {{ "{:,.0f}".format(item.revenue) }} đ
+                        </span>
+                    </div>
+
+                </div>
+
                 <!-- ACTION -->
-                <div class="card-footer d-flex gap-2">
-                    <a href="#" class="btn btn-sm btn-outline-light w-100">Sửa</a>
-                    <a href="#" class="btn btn-sm btn-success w-100">Quản lý</a>
+                <div class="card-footer border-secondary d-flex gap-2">
+
+                    {% if item.status != 'cancelled' %}
+                    <a href="#"
+                       class="btn btn-sm btn-outline-light w-100">
+                        Chỉnh sửa
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-secondary w-100" disabled>
+                        Không thể sửa
+                    </button>
+                    {% endif %}
+
+                    {% if item.status == 'approved' %}
+                    <a href="{{ url_for('reports_detail', event_id=item.id) }}"
+                       class="btn btn-sm btn-success w-100">
+                        Báo cáo
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-secondary w-100" disabled>
+                        Chưa có báo cáo
+                    </button>
+                    {% endif %}
+
                 </div>
 
             </div>
         </div>
+
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-secondary">
+                <i class="fas fa-calendar-plus fa-3x mb-3"></i>
+                <h5>Chưa có sự kiện nào</h5>
+                <a href="{{ url_for('event_create') }}" class="btn btn-success">
+                    Tạo sự kiện
+                </a>
+            </div>
+        </div>
         {% endfor %}
+
     </div>
-
 </div>
-
 {% endblock %}

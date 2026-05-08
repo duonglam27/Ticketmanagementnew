@@ -19,7 +19,7 @@ def init_routes(app):
         category = request.args.get('cat', '').strip()
 
         # Nếu keyword và category đều rỗng, hàm này tự trả về All Events
-        events = dao.search_events(keyword=keyword, category=category)
+        events = dao.search_events_simple(keyword=keyword, category=category)
 
         return render_template('index.html', events=events)
 
@@ -95,6 +95,7 @@ def init_routes(app):
     @login_required
     def event_create():
         if request.method == 'POST':
+            print(request.form)
             try:
                 new_event = service.create_event_complex_service(
                     data=request.form,
@@ -130,59 +131,130 @@ def init_routes(app):
         return render_template(
             'organizer/my_events.html',
             events=events,
-            active_tab=tab,
-            active_page='events'
+            active_tab=tab
         )
 
     @app.route('/organizer/reports')
     @login_required
-    def reports():
+    def organizer_report():
+
         return render_template('organizer/reports.html')
+
+
+    @app.route('/organizer/reports/<int:event_id>')
+    @login_required
+    def reports_detail(event_id):
+        data = service.get_event_report(event_id)
+
+        return render_template(
+            'organizer/reports_detail.html',
+            data=data
+        )
 
     @app.route('/organizer/terms')
     @login_required
     def terms():
         return render_template('organizer/setting.html')
 
-
-
     @app.route('/event/<int:event_id>')
     def event_detail(event_id):
-        # Lấy thông tin chi tiết sự kiện từ DAO
-        event = dao.get_event_details(event_id)
-        if not event:
+        # Gọi service để lấy dữ liệu đã qua xử lý logic
+        data = service.get_event_details(event_id)
+        if not data:
             abort(404)
 
-        # 1. Tính giá vé thấp nhất (min_price)
-        all_prices = []
-        for showing in event.showings:
-            for t_type in showing.ticket_types:
-                all_prices.append(t_type.base_price)
-
-        min_price = min(all_prices) if all_prices else 0
-
-        # 2. Xác định trạng thái (Đã kết thúc hay chưa)
-        # Lấy thời gian của suất diễn muộn nhất
-        is_finished = True
-        if event.showings:
-            last_showing_time = max([s.start_time for s in event.showings])
-            if last_showing_time > datetime.now():
-                is_finished = False
-
-        return render_template('event_detail.html',
-                               event=event,
-                               min_price=min_price,
-                               is_finished=is_finished)
-
+        return render_template('event_detail.html', **data)
 
     @app.route('/booking/<int:showing_id>')
+    @login_required  # Cần đăng nhập để bắt đầu giữ chỗ
     def booking(showing_id):
-        # 1. Lấy thông tin suất diễn và danh sách vé/ghế từ DAO
+        # 1. Lấy thông tin suất diễn và các loại vé đi kèm
         showing = dao.get_showing_by_id(showing_id)
-        tickets = dao.get_tickets_by_showing(showing_id)
+        if not showing or showing.event.is_finished:
+            flash("Suất diễn không tồn tại hoặc đã kết thúc.", "warning")
+            return redirect(url_for('home'))
 
-        # 2. Render ra trang chọn ghế
-        return render_template('booking.html', showing=showing, tickets=tickets)
+        # 2. Lấy danh sách các loại vé (TicketTypes) của suất diễn này
+        ticket_types = dao.get_tickets_by_showing(showing_id)
 
+        return render_template('booking.html',
+                               showing=showing,
+                               event=showing.event,
+                               ticket_types=ticket_types)
 
+    @app.route('/order/create', methods=['POST'])
+    @login_required
+    def create_order():
+        # 1. Lấy và kiểm tra dữ liệu đầu vào
+        ticket_type_id = request.form.get('ticket_type_id', type=int)
+        quantity = request.form.get('quantity', default=1, type=int)
 
+        if not ticket_type_id or quantity <= 0:
+            flash("Thông tin đặt vé không hợp lệ.", "warning")
+            return redirect(request.referrer or url_for('home'))
+
+        # 2. Gọi Service để xử lý Transaction
+        try:
+            # Đảm bảo logic "Atomic" trong Service (tất cả thành công hoặc tất cả thất bại)
+            result = service.process_booking(
+                user_id=current_user.id,
+                ticket_type_id=ticket_type_id,
+                quantity=quantity
+            )
+
+            if result['status'] == 'success':
+                flash("Giữ chỗ thành công! Vui lòng hoàn tất thanh toán.", "success")
+                # Redirect đến trang thanh toán hoặc chi tiết đơn hàng
+                return redirect(url_for('order_detail', order_id=result['order_id']))
+            else:
+                # Lỗi nghiệp vụ (hết vé, sai loại vé...)
+                flash(result['message'], "danger")
+                return redirect(request.referrer or url_for('home'))
+
+        except Exception as e:
+            # Log lỗi để dev kiểm tra, nhưng hiển thị thông báo thân thiện cho khách
+            app.logger.error(f"Order Creation Error: {str(e)}")
+            flash("Hệ thống đang bận, vui lòng thử lại sau giây lát.", "danger")
+            return redirect(request.referrer or url_for('home'))
+
+    @app.route('/order/<int:order_id>')
+    @login_required
+    def order_detail(order_id):
+        # Gọi DAO đã tối ưu
+        order = dao.get_order_by_id(order_id)
+
+        # Kiểm tra bảo mật: Không cho phép xem đơn hàng của người khác
+        if not order:
+            flash("Không tìm thấy đơn hàng.", "danger")
+            return redirect(url_for('home'))
+
+        if order.user_id != current_user.id:
+            abort(403)  # Quyền truy cập bị từ chối
+
+        return render_template('orders.html', order=order)
+
+    @app.route('/order/cancel/<int:order_id>', methods=['POST'])
+    @login_required
+    def cancel_order(order_id):
+        success, message = service.cancel_order_service(order_id, current_user.id)
+
+        flash(message, "success" if success else "danger")
+
+        # Nếu không có trang list orders, có thể dùng request.referrer
+        # để quay lại trang trước đó người dùng đang đứng
+        return redirect(request.referrer or url_for('home'))
+
+    @app.route('/order/process-payment/<int:order_id>', methods=['POST'])
+    @login_required
+    def process_payment(order_id):
+        method = request.form.get('payment_method', 'CASH')
+        success, message = service.process_payment_service(order_id, current_user.id, method)
+
+        if success:
+            flash(message, "success")
+            # Ví dụ: return redirect(url_for('my_tickets'))
+            return redirect(url_for('home'))  # Tạm thời về Home
+        else:
+            flash(message, "danger")
+            # Quay lại trang thanh toán để họ chọn lại phương thức payment
+            return redirect(url_for('checkout', order_id=order_id))

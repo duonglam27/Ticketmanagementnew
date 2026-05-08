@@ -7,7 +7,7 @@
 
 <div class="container-fluid">
 
-    <!-- 🔥 KPI CARDS -->
+    <!-- 🔥 KPI -->
     <div class="row g-4 mb-4">
 
         <div class="col-md-3">
@@ -55,36 +55,57 @@
 
         {% for item in events %}
         <div class="col-md-6 col-lg-4 col-xl-3">
+
             <div class="card bg-dark text-light border-secondary h-100 shadow-sm">
 
-                <!-- IMAGE -->
-                <img src="{{ item.banner }}" class="card-img-top" style="height:150px; object-fit:cover;">
+                <!-- IMAGE + STATUS -->
+                <div class="position-relative">
+                    <img src="{{ item.banner or '/static/images/default.jpg' }}"
+                         class="card-img-top"
+                         style="height:150px; object-fit:cover;">
 
+                    <!-- STATUS BADGE -->
+                    <span class="position-absolute top-0 end-0 m-2 badge
+                        {% if item.status == 'approved' %}bg-success
+                        {% elif item.status == 'pending' %}bg-warning
+                        {% elif item.status == 'rejected' %}bg-danger
+                        {% else %}bg-secondary
+                        {% endif %}
+                    ">
+                        {% if item.status == 'approved' %}Đang bán
+                        {% elif item.status == 'pending' %}Chờ duyệt
+                        {% elif item.status == 'rejected' %}Bị từ chối
+                        {% else %}Khác
+                        {% endif %}
+                    </span>
+                </div>
 
                 <div class="card-body">
 
                     <!-- NAME -->
-                    <h6 class="fw-bold text-truncate">
+                    <h6 class="fw-bold text-truncate mb-1">
                         {{ item.name }}
                     </h6>
 
-                    <!-- PROGRESS TEXT -->
-                    <div class="small text-secondary mb-2">
+                    <!-- PROGRESS -->
+                    <div class="small text-secondary mb-1">
                         {{ item.sold }} / {{ item.total }} vé
                     </div>
 
-                    <!-- PROGRESS BAR -->
-                    <div class="progress mb-3 bg-secondary" style="height: 6px;">
-                        <div class="progress-bar bg-success"
+                    <div class="progress mb-2 bg-secondary" style="height:6px;">
+                        <div class="progress-bar
+                            {% if item.progress < 30 %}bg-danger
+                            {% elif item.progress < 70 %}bg-warning
+                            {% else %}bg-success
+                            {% endif %}
+                        "
                              style="width: {{ item.progress }}%">
                         </div>
                     </div>
 
-                    <!-- EXTRA INFO -->
+                    <!-- FOOT -->
                     <div class="d-flex justify-content-between small">
-                        <span class="text-info">
-                            {{ item.progress }}%
-                        </span>
+                        <span class="text-info">{{ item.progress }}%</span>
 
                         <span class="text-warning fw-bold">
                             {{ "{:,.0f}".format(item.revenue) }} đ
@@ -95,21 +116,30 @@
 
                 <!-- ACTION -->
                 <div class="card-footer border-secondary d-flex gap-2">
-                    <a href="#" class="btn btn-sm btn-outline-light w-100">
+
+                    <a href="#"
+                       class="btn btn-sm btn-outline-light w-100">
                         Chỉnh sửa
                     </a>
 
-                    <a href="{{ url_for('reports') }}"
+                    {% if item.status == 'approved' %}
+                    <a href="{{ url_for('reports_detail', event_id=item.id) }}"
                        class="btn btn-sm btn-success w-100">
-                        Báo cáo
+                        <i class="fas fa-chart-bar me-1"></i> Báo cáo
                     </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-secondary w-100" disabled>
+                        Chưa có báo cáo
+                    </button>
+                    {% endif %}
+
                 </div>
 
             </div>
         </div>
 
         {% else %}
-        <!-- EMPTY STATE -->
+        <!-- EMPTY -->
         <div class="col-12 text-center py-5">
             <div class="text-secondary">
                 <i class="fas fa-calendar-plus fa-3x mb-3"></i>

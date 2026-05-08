@@ -1,0 +1,136 @@
+{% extends 'organizer/base_org.html' %}
+{% set active_page = 'reports' %}
+
+{% block title %}Báo cáo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="text-light fw-bold mb-1">
+                {{ data.event.name }}
+            </h3>
+
+            <div class="text-secondary small">
+                <i class="fas fa-map-marker-alt me-1"></i>
+                {{ data.event.location_name or 'Chưa có địa điểm' }}
+            </div>
+        </div>
+
+        <a href="{{ url_for('organizer_events') }}"
+           class="btn btn-outline-light btn-sm">
+            ← Quay lại
+        </a>
+    </div>
+
+    <!-- BANNER -->
+    <div class="mb-4">
+        <img src="{{ data.event.image_banner or '/static/images/default.jpg' }}"
+             class="w-100 rounded"
+             style="height:200px; object-fit:cover;">
+    </div>
+
+    <!-- KPI -->
+    <div class="row g-4 mb-4">
+
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-light">
+                <div class="card-body">
+                    <div class="small text-secondary">Tổng vé</div>
+                    <h4 class="fw-bold">{{ data.summary.total }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-light">
+                <div class="card-body">
+                    <div class="small text-secondary">Đã bán</div>
+                    <h4 class="fw-bold text-success">{{ data.summary.sold }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-light">
+                <div class="card-body">
+                    <div class="small text-secondary">Doanh thu</div>
+                    <h4 class="fw-bold text-warning">
+                        {{ "{:,.0f}".format(data.summary.revenue or 0) }} đ
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-light">
+                <div class="card-body">
+                    <div class="small text-secondary">Tỉ lệ</div>
+                    <h4 class="fw-bold text-info">
+                        {{ data.summary.percent }}%
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="card bg-dark border-secondary text-light mb-4">
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between small mb-2">
+                <span>
+                    {{ data.summary.sold }} / {{ data.summary.total }} vé
+                </span>
+                <span>{{ data.summary.percent }}%</span>
+            </div>
+
+            <div class="progress bg-secondary" style="height:10px;">
+                <div class="progress-bar
+                    {% if data.summary.percent < 30 %}bg-danger
+                    {% elif data.summary.percent < 70 %}bg-warning
+                    {% else %}bg-success
+                    {% endif %}
+                "
+                style="width: {{ data.summary.percent }}%">
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- INFO -->
+    <div class="card bg-dark border-secondary text-light">
+        <div class="card-body">
+            <h5 class="fw-bold mb-3">Thông tin sự kiện</h5>
+
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <span class="text-secondary">Danh mục:</span>
+                    <span>{{ data.event.category }}</span>
+                </div>
+
+                <div class="col-md-6 mb-2">
+                    <span class="text-secondary">Thành phố:</span>
+                    <span>{{ data.event.city }}</span>
+                </div>
+
+                <div class="col-md-6 mb-2">
+                    <span class="text-secondary">Loại:</span>
+                    <span>{{ data.event.event_type }}</span>
+                </div>
+
+                <div class="col-md-6 mb-2">
+                    <span class="text-secondary">Trạng thái:</span>
+                    <span class="badge bg-success">
+                        {{ data.event.status.value }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

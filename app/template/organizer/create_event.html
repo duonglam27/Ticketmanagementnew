@@ -5,64 +5,192 @@
 {% block content %}
 <div class="container-fluid bg-dark text-light min-vh-100 p-0 d-flex">
     <div class="flex-grow-1 p-4 bg-black overflow-auto">
-        <form id="eventForm" action="{{ url_for('event_create') }}" method="post" enctype="multipart/form-data" class="mx-auto shadow-lg p-5 rounded-4 bg-dark border border-secondary" style="max-width: 950px;">
+        <form id="eventForm" action="{{ url_for('event_create') }}" method="post" enctype="multipart/form-data"
+              class="mx-auto shadow-lg p-5 rounded-4 bg-dark border border-secondary" style="max-width: 950px;">
 
-            <h2 class="mb-4 fw-bold">Thông tin sự kiện</h2>
+            <h2 class="mb-4 fw-bold text-success"><i class="fas fa-magic me-2"></i>Thông tin sự kiện</h2>
 
             <div class="form-section mb-5">
-                <div class="d-flex align-items-center mb-3"><span class="badge bg-success me-2">1</span><h6 class="m-0 text-uppercase fw-bold text-secondary">Hình ảnh hiển thị</h6></div>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success me-2">1</span>
+                    <h6 class="m-0 text-uppercase fw-bold text-secondary">Hình ảnh hiển thị</h6>
+                </div>
                 <div class="row g-3">
-                    <div class="col-md-4"><div class="upload-placeholder border border-secondary border-dashed rounded-3 d-flex flex-column align-items-center justify-content-center bg-secondary bg-opacity-10 position-relative" style="height: 280px; cursor: pointer;"><div class="preview-zone d-none position-absolute top-0 start-0 w-100 h-100"><img src="" class="w-100 h-100 object-fit-cover"></div><div class="text-center p-3"><i class="fas fa-cloud-upload-alt fa-2x text-success mb-2"></i><p class="small m-0 fw-bold">Poster Đứng</p></div><input type="file" name="poster" class="d-none" accept="image/*" required></div></div>
-                    <div class="col-md-8"><div class="upload-placeholder border border-secondary border-dashed rounded-3 d-flex flex-column align-items-center justify-content-center bg-secondary bg-opacity-10 position-relative" style="height: 280px; cursor: pointer;"><div class="preview-zone d-none position-absolute top-0 start-0 w-100 h-100"><img src="" class="w-100 h-100 object-fit-cover"></div><div class="text-center p-3"><i class="fas fa-images fa-2x text-success mb-2"></i><p class="small m-0 fw-bold">Banner Ngang</p></div><input type="file" name="banner" class="d-none" accept="image/*" required></div></div>
+                    <div class="col-md-4">
+                        <div class="upload-placeholder border border-secondary border-dashed rounded-4 d-flex flex-column align-items-center justify-content-center bg-secondary bg-opacity-10 position-relative" style="height: 300px; cursor: pointer; transition: 0.3s;">
+                            <div class="preview-zone d-none position-absolute top-0 start-0 w-100 h-100 p-1">
+                                <img src="" class="w-100 h-100 object-fit-cover rounded-3">
+                            </div>
+                            <div class="text-center p-3 info-upload">
+                                <i class="fas fa-cloud-upload-alt fa-2x text-success mb-2"></i>
+                                <p class="small m-0 fw-bold">Poster Đứng (3:4)</p>
+                            </div>
+                            <input type="file" name="poster" class="d-none" accept="image/*" required>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="upload-placeholder border border-secondary border-dashed rounded-4 d-flex flex-column align-items-center justify-content-center bg-secondary bg-opacity-10 position-relative" style="height: 300px; cursor: pointer; transition: 0.3s;">
+                            <div class="preview-zone d-none position-absolute top-0 start-0 w-100 h-100 p-1">
+                                <img src="" class="w-100 h-100 object-fit-cover rounded-3">
+                            </div>
+                            <div class="text-center p-3 info-upload">
+                                <i class="fas fa-images fa-2x text-success mb-2"></i>
+                                <p class="small m-0 fw-bold">Banner Ngang (16:9)</p>
+                            </div>
+                            <input type="file" name="banner" class="d-none" accept="image/*" required>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="form-section mb-5">
-                <div class="d-flex align-items-center mb-3"><span class="badge bg-success me-2">2</span><h6 class="m-0 text-uppercase fw-bold text-secondary">Chi tiết nội dung</h6></div>
-                <div class="form-floating mb-3"><input type="text" name="name" class="form-control bg-dark border-secondary text-light shadow-none" id="eventName" placeholder="Tên" required><label for="eventName">Tên sự kiện *</label></div>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success me-2">2</span>
+                    <h6 class="m-0 text-uppercase fw-bold text-secondary">Chi tiết nội dung</h6>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="text" name="name" class="form-control bg-dark border-secondary text-light shadow-none" id="eventName" placeholder="Tên" required>
+                    <label for="eventName">Tên sự kiện *</label>
+                </div>
                 <div class="row g-3 mb-3">
-                    <div class="col-md-6"><div class="form-floating"><input type="text" name="category" class="form-control bg-dark border-secondary text-light shadow-none" id="cat" placeholder="Danh mục" required><label for="cat">Danh mục</label></div></div>
-                    <div class="col-md-6"><div class="form-floating"><select name="event_type" class="form-select bg-dark border-secondary text-light shadow-none" id="eType"><option value="Offline">Offline</option><option value="Online">Online</option></select><label for="eType">Hình thức</label></div></div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" name="category" class="form-control bg-dark border-secondary text-light shadow-none" id="cat" placeholder="Danh mục" required>
+                            <label for="cat">Danh mục</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select name="event_type" class="form-select bg-dark border-secondary text-light shadow-none" id="eType">
+                                <option value="Offline">Offline</option>
+                                <option value="Online">Online</option>
+                            </select>
+                            <label for="eType">Hình thức</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="row g-3 mb-3"><div class="col-md-8"><div class="form-floating"><input type="text" name="location_name" class="form-control bg-dark border-secondary text-light shadow-none" id="locName" placeholder="Địa điểm"><label for="locName">Địa điểm</label></div></div><div class="col-md-4"><div class="form-floating"><input type="text" name="city" class="form-control bg-dark border-secondary text-light shadow-none" id="cityName" placeholder="Thành phố"><label for="cityName">Thành phố</label></div></div></div>
-                <div class="form-floating"><textarea name="description" class="form-control bg-dark border-secondary text-light shadow-none" id="desc" placeholder="Mô tả" style="height: 100px" required></textarea><label for="desc">Giới thiệu</label></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <div class="form-floating">
+                            <input type="text" name="location_name" class="form-control bg-dark border-secondary text-light shadow-none" id="locName" placeholder="Địa điểm">
+                            <label for="locName">Địa điểm tổ chức</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <input type="text" name="city" class="form-control bg-dark border-secondary text-light shadow-none" id="cityName" placeholder="Thành phố">
+                            <label for="cityName">Thành phố</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-floating">
+                    <textarea name="description" class="form-control bg-dark border-secondary text-light shadow-none" id="desc" placeholder="Mô tả" style="height: 100px" required></textarea>
+                    <label for="desc">Giới thiệu sự kiện</label>
+                </div>
             </div>
 
             <div class="form-section mb-5">
-                <div class="d-flex align-items-center mb-3"><span class="badge bg-success me-2">3</span><h6 class="m-0 text-uppercase fw-bold text-secondary">Đơn vị tổ chức</h6></div>
-                <div class="row g-3 align-items-center bg-secondary bg-opacity-10 p-3 rounded-3">
-                    <div class="col-md-3"><div class="upload-placeholder border border-secondary border-dashed rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width: 100px; height: 100px; cursor: pointer;"><i class="fas fa-camera text-success"></i><input type="file" name="org_logo" class="d-none" accept="image/*" required></div></div>
-                    <div class="col-md-9"><div class="form-floating"><input type="text" name="organizer_brand" class="form-control bg-dark border-secondary text-light shadow-none" id="orgName" placeholder="Thương hiệu" required><label for="orgName">Tên thương hiệu tổ chức</label></div></div>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success me-2">3</span>
+                    <h6 class="m-0 text-uppercase fw-bold text-secondary">Đơn vị tổ chức</h6>
+                </div>
+                <div class="row g-3 align-items-center bg-secondary bg-opacity-10 p-4 rounded-4 border border-secondary">
+                    <div class="col-md-3 text-center">
+                        <div class="upload-placeholder border border-secondary border-dashed rounded-circle mx-auto d-flex align-items-center justify-content-center position-relative" style="width: 100px; height: 100px; cursor: pointer; overflow: hidden;">
+                            <div class="preview-zone d-none position-absolute top-0 start-0 w-100 h-100">
+                                <img src="" class="w-100 h-100 object-fit-cover">
+                            </div>
+                            <i class="fas fa-camera text-success"></i>
+                            <input type="file" name="org_logo" class="d-none" accept="image/*" required>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <div class="form-floating">
+                            <input type="text" name="organizer_brand" class="form-control bg-dark border-secondary text-light shadow-none" id="orgName" placeholder="Thương hiệu" required>
+                            <label for="orgName">Tên thương hiệu tổ chức</label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="form-section mb-4">
-                <div class="d-flex align-items-center mb-3"><span class="badge bg-success me-2">4</span><h6 class="m-0 text-uppercase fw-bold text-secondary">Lịch diễn & Cấu hình vé</h6></div>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success me-2">4</span>
+                    <h6 class="m-0 text-uppercase fw-bold text-secondary">Lịch diễn & Cấu hình vé</h6>
+                </div>
                 <div id="showing-area"></div>
-                <button type="button" class="btn btn-outline-success border-dashed w-100 py-3 rounded-4 fw-bold" onclick="addShowing()"><i class="fas fa-plus-circle me-2"></i>Thêm suất diễn</button>
+                <button type="button" class="btn btn-outline-success border-dashed w-100 py-3 rounded-4 fw-bold" onclick="addShowing()">
+                    <i class="fas fa-plus-circle me-2"></i>Thêm suất diễn mới
+                </button>
             </div>
 
             <div class="text-center pt-4 border-top border-secondary">
-                <button type="submit" class="btn btn-success btn-lg px-5 rounded-pill fw-bold"><i class="fas fa-rocket me-2"></i>XÁC NHẬN & ĐĂNG SỰ KIỆN</button>
+                <button type="submit" id="submitBtn" class="btn btn-success btn-lg px-5 rounded-pill fw-bold shadow-lg py-3">
+                    <i class="fas fa-rocket me-2"></i>XÁC NHẬN & ĐĂNG SỰ KIỆN
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-<div class="modal fade" id="seatModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content bg-dark border border-secondary"><div class="modal-header"><h5>Thiết lập sơ đồ</h5></div><div class="modal-body"><input type="number" id="modalRows" class="form-control mb-2" value="5"><input type="number" id="modalCols" class="form-control" value="10"></div><div class="modal-footer"><button class="btn btn-success" onclick="saveSeatConfig()">Lưu</button></div></div></div></div>
+<div class="modal fade" id="seatModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border border-secondary shadow-lg">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-success">Thiết lập sơ đồ ghế</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="small text-secondary mb-1">Số hàng (A-Z)</label>
+                        <input type="number" id="modalRows" class="form-control bg-black border-secondary text-light" value="5" min="1" max="26">
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-secondary mb-1">Số ghế/hàng</label>
+                        <input type="number" id="modalCols" class="form-control bg-black border-secondary text-light" value="10" min="1" max="50">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-success w-100 fw-bold" onclick="saveSeatConfig()">ÁP DỤNG</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     let currentSeatInput;
-    function openSeatModal(btn) { currentSeatInput = btn.closest('.input-group').querySelector('input[name="seat_numbers[]"]'); new bootstrap.Modal(document.getElementById('seatModal')).show(); }
-    function saveSeatConfig() { currentSeatInput.value = document.getElementById('modalRows').value + ' hàng, ' + document.getElementById('modalCols').value + ' cột'; bootstrap.Modal.getInstance(document.getElementById('seatModal')).hide(); }
+
+    function openSeatModal(btn) {
+        currentSeatInput = btn.closest('.input-group').querySelector('input[name="seat_numbers[]"]');
+        const modal = new bootstrap.Modal(document.getElementById('seatModal'));
+        modal.show();
+    }
+
+    function saveSeatConfig() {
+        const rows = document.getElementById('modalRows').value;
+        const cols = document.getElementById('modalCols').value;
+        // Định dạng rows x cols để Server dễ xử lý (VD: 5x10)
+        currentSeatInput.value = `${rows}x${cols}`;
+        bootstrap.Modal.getInstance(document.getElementById('seatModal')).hide();
+    }
 
     // Upload preview
     document.querySelectorAll('.upload-placeholder').forEach(box => {
-        box.onclick = () => box.querySelector('input').click();
+        box.onclick = (e) => {
+            if(e.target.tagName !== 'INPUT') box.querySelector('input').click();
+        };
         box.querySelector('input').onchange = function(e) {
-            const reader = new FileReader();
-            reader.onload = (ev) => { box.querySelector('.preview-zone img').src = ev.target.result; box.querySelector('.preview-zone').classList.remove('d-none'); };
-            reader.readAsDataURL(e.target.files[0]);
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    box.querySelector('.preview-zone img').src = ev.target.result;
+                    box.querySelector('.preview-zone').classList.remove('d-none');
+                    if(box.querySelector('.info-upload')) box.querySelector('.info-upload').classList.add('d-none');
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
         };
     });
 
@@ -71,18 +199,55 @@
         const div = document.createElement('div');
         div.className = 'showing-card p-4 mb-4 border border-secondary rounded-4 bg-secondary bg-opacity-10 position-relative';
         div.innerHTML = `
-            <button type="button" class="btn btn-sm btn-outline-danger border-0 position-absolute top-0 end-0 m-2" onclick="this.remove()"><i class="fas fa-times-circle"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger border-0 position-absolute top-0 end-0 m-2"
+                    onclick="this.closest('.showing-card').remove()">
+                <i class="fas fa-times-circle fa-lg"></i>
+            </button>
             <div class="row g-3 mb-4">
-                <div class="col-md-5"><label class="small text-success fw-bold">Thời gian</label><input type="datetime-local" name="start_time[]" class="form-control bg-dark border-secondary text-light" required></div>
-                <div class="col-md-7"><label class="small text-success fw-bold">Sơ đồ</label><div class="input-group"><input type="text" name="seat_numbers[]" class="form-control bg-dark border-secondary text-light" readonly required><button type="button" class="btn btn-outline-success" onclick="openSeatModal(this)">Thiết lập</button></div></div>
+                <div class="col-md-5">
+                    <label class="small text-success fw-bold mb-2">Thời gian bắt đầu</label>
+                    <input type="datetime-local" name="start_time[]" class="form-control bg-dark border-secondary text-light" required>
+                </div>
+                <div class="col-md-7">
+                    <label class="small text-success fw-bold mb-2">Sơ đồ ghế</label>
+                    <div class="input-group">
+                        <input type="text" name="seat_numbers[]" class="form-control bg-dark border-secondary text-light" placeholder="VD: 5x10" readonly required>
+                        <button type="button" class="btn btn-outline-success" onclick="openSeatModal(this)">Thiết lập</button>
+                    </div>
+                </div>
             </div>
             <div class="row g-3">
-                <div class="col-md-4"><label class="small text-secondary">Loại vé</label><input type="text" name="ticket_name[]" class="form-control bg-dark border-secondary text-light" required></div>
-                <div class="col-md-4"><label class="small text-secondary">Giá vé</label><input type="number" name="ticket_price[]" class="form-control bg-dark border-secondary text-light" required></div>
-                <div class="col-md-4"><label class="small text-secondary">Số lượng</label><input type="number" name="ticket_qty[]" class="form-control bg-dark border-secondary text-light" required></div>
+                <div class="col-md-4">
+                    <label class="small text-secondary mb-2">Hạng vé</label>
+                    <input type="text" name="ticket_name[]" class="form-control bg-dark border-secondary text-light" placeholder="Vé VIP" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="small text-secondary mb-2">Giá vé (VNĐ)</label>
+                    <input type="number" name="ticket_price[]" class="form-control bg-dark border-secondary text-light" placeholder="0" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="small text-secondary mb-2">Số lượng tối đa</label>
+                    <input type="number" name="ticket_qty[]" class="form-control bg-dark border-secondary text-light" placeholder="100" required>
+                </div>
             </div>`;
         container.appendChild(div);
     }
-    addShowing(); // Gọi mặc định 1 suất diễn
+
+    // Hiệu ứng loading khi submit
+    document.getElementById('eventForm').onsubmit = function() {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> ĐANG ĐĂNG...';
+    };
+
+    // Khởi tạo suất diễn đầu tiên
+    addShowing();
 </script>
+
+<style>
+    .border-dashed { border-style: dashed !important; }
+    .upload-placeholder:hover { border-color: #198754 !important; background-color: rgba(25, 135, 84, 0.1) !important; }
+    .showing-card { border-left: 5px solid #198754 !important; transition: 0.3s; }
+    .showing-card:hover { transform: translateX(5px); }
+</style>
 {% endblock %}
