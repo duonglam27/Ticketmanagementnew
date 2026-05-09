@@ -1,0 +1,39 @@
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}Danh sách Organizers{% endblock %}
+
+{% block content %}
+
+<div class="row g-3">
+
+    {% for o in organizers %}
+
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body text-center">
+
+                <img src="{{ o.avatar }}"
+                     width="90"
+                     height="90"
+                     class="rounded-circle mb-3">
+
+                <h5>{{ o.name }}</h5>
+
+                <p class="text-muted">
+                    {{ o.email }}
+                </p>
+
+                <a href="{{ url_for('admin.user_detail', user_id=o.id) }}"
+                   class="btn btn-primary btn-sm">
+                    Xem chi tiết
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}

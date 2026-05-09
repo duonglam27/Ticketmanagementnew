@@ -1,0 +1,60 @@
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}Quản lý đơn hàng{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Người dùng</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for o in orders %}
+            <tr>
+                <td>#{{ o.id }}</td>
+                <td>{{ o.user.name }}</td>
+                <td class="text-success fw-bold">
+                    {{ '{:,.0f}'.format(o.total_amount) }} VND
+                </td>
+                <td>
+                    <span class="badge
+                    {% if o.status.value == 'paid' %}bg-success
+                    {% elif o.status.value == 'pending' %}bg-warning
+                    {% else %}bg-danger
+                    {% endif %}">
+                        {{ o.status.value }}
+                    </span>
+                </td>
+                <td>
+                    {% if o.created_at %}
+                    {{ o.created_at.strftime('%d/%m/%Y') }}
+                    {% else %}
+                    Không có ngày
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('admin.order_detail', order_id=o.id) }}"
+                       class="btn btn-sm btn-info">
+                        Chi tiết
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
+{% endblock %}

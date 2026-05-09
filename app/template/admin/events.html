@@ -1,0 +1,132 @@
+
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}
+Quản lý sự kiện
+{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm">
+    <div class="card-body">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Danh sách sự kiện</h4>
+
+            <form method="GET" class="d-flex gap-2">
+
+                <select name="status" class="form-select">
+                    <option value="">-- Trạng thái --</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+
+                <button class="btn btn-primary">
+                    Lọc
+                </button>
+
+            </form>
+        </div>
+
+        <table class="table table-hover align-middle">
+
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Tên sự kiện</th>
+                    <th>Organizer</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Ngày tạo</th>
+                    <th width="260"></th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+            {% for e in events %}
+                <tr>
+
+                    <td>{{ e.id }}</td>
+
+                    <td>
+                        <strong>{{ e.title }}</strong>
+                    </td>
+
+                    <td>
+                        {{ e.organizer.name }}
+                    </td>
+
+                    <td>
+                        {{ e.category }}
+                    </td>
+
+                    <td>
+
+                        <span class="badge
+                        {% if e.status.value == 'approved' %}
+                            bg-success
+                        {% elif e.status.value == 'pending' %}
+                            bg-warning
+                        {% elif e.status.value == 'rejected' %}
+                            bg-danger
+                        {% else %}
+                            bg-secondary
+                        {% endif %}
+                        ">
+                            {{ e.status.value }}
+                        </span>
+
+                    </td>
+
+                    <td>
+                        {{ e.created_at.strftime('%d/%m/%Y') }}
+                    </td>
+
+                    <td>
+
+                        <a href="{{ url_for('admin.event_detail_admin', event_id=e.id) }}"
+                           class="btn btn-sm btn-info">
+                            Chi tiết
+                        </a>
+
+                        <a href="{{ url_for('admin.approve_event', event_id=e.id) }}"
+                           class="btn btn-sm btn-success">
+                            Duyệt
+                        </a>
+
+                        <a href="{{ url_for('admin.reject_event', event_id=e.id) }}"
+                           class="btn btn-sm btn-warning">
+                            Từ chối
+                        </a>
+
+                        <a href="{{ url_for('admin.delete_event_admin', event_id=e.id) }}"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Xóa sự kiện này?')">
+                            Xóa
+                        </a>
+
+                    </td>
+
+                </tr>
+
+            {% else %}
+
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        Không có sự kiện
+                    </td>
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+</div>
+
+{% endblock %}
