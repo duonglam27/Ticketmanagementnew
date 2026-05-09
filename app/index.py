@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 
-from flask import render_template, request, redirect, url_for, flash, abort, current_app
+from flask import render_template, request, redirect, url_for, flash, abort, current_app, jsonify
 from flask_login import login_user as flask_login_user, logout_user, current_user, login_required
 from app import dao, login, service, scheduler
-from app.models import Order
+from app.models import Order, Payment
 
 
 def init_routes(app):
@@ -12,17 +12,20 @@ def init_routes(app):
         # DAO chịu trách nhiệm lấy User từ DB
         return dao.get_user_by_id(user_id)
 
-
     @app.route('/')
     def home():
-        # Lấy keyword từ ô search (name="q") và category từ link (name="cat")
         keyword = request.args.get('q', '').strip()
         category = request.args.get('cat', '').strip()
+        location = request.args.get('loc', '').strip()  # Lấy địa điểm từ query string
 
-        # Nếu keyword và category đều rỗng, hàm này tự trả về All Events
-        events = dao.search_events_simple(keyword=keyword, category=category)
+        events = dao.search_events_simple(keyword=keyword, category=category, location=location)
+        categories = dao.get_all_categories()
+        locations = dao.get_all_locations()
 
-        return render_template('index.html', events=events)
+        return render_template('index.html',
+                               events=events,
+                               categories=categories,
+                               locations=locations)
 
     @app.route('/register', methods=['GET', 'POST'])
     def user_register():
@@ -135,11 +138,58 @@ def init_routes(app):
             active_tab=tab
         )
 
+    @app.route("/my-tickets")
+    @login_required
+    def my_tickets():
+        # Gọi hàm trực tiếp từ service
+        user_tickets = service.get_my_tickets_logic(user_id=current_user.id)
+
+        return render_template("my_tickets.html", tickets=user_tickets)
+
+    @app.route("/ticket/<int:ticket_id>")
+    @login_required
+    def view_ticket_detail(ticket_id):
+        # Gọi Service xử lý logic (truyền ID vé và ID người dùng hiện tại)
+        ticket = service.get_ticket_detail_logic(ticket_id, current_user.id)
+
+        # Nếu không tìm thấy vé hoặc có lỗi logic
+        if not ticket:
+            abort(404)
+
+        # Trả về giao diện chi tiết vé
+        return render_template("ticket_detail.html", ticket=ticket)
+
+
+    @app.route("/staff/scanner")
+    @login_required
+    def staff_scanner():
+        # Kiểm tra nếu KHÔNG phải staff thì đuổi ra
+        # if not current_user.is_staff():
+        #     abort(403)  # Forbidden
+
+        return render_template("staff/staff_scanner.html")
+
+    # routes.py
+    @app.route("/staff/verify-ticket", methods=["POST"])
+    @login_required
+    def verify_ticket():
+        # if not current_user.is_staff():
+        #     return jsonify({"success": False, "message": "Từ chối truy cập"}), 403
+
+        data = request.json
+        qr_data = data.get("qr_code")
+
+        # Gọi service đã viết ở bước trước để check-in
+        result = service.scan_and_checkin_logic(qr_data)
+
+        return jsonify(result)
+
     @app.route('/organizer/reports')
     @login_required
     def organizer_report():
 
         return render_template('organizer/reports.html')
+
 
 
     @app.route('/organizer/reports/<int:event_id>')
@@ -231,25 +281,66 @@ def init_routes(app):
             flash("Hệ thống đang bận, vui lòng thử lại sau giây lát.", "danger")
             return redirect(request.referrer or url_for('home'))
 
+
+    from app.models import PaymentStatus
+
     @app.route('/order/<int:order_id>')
     def order_detail(order_id):
+
         order = dao.get_order_by_id(order_id)
+
         remaining_seconds = 0
 
-        if order.status.name == 'PENDING':
-            timeout_mins = current_app.config.get('ORDER_TIMEOUT_MINUTES', 1)
+        latest_payment = None
 
-            # Dùng utcnow() để so sánh với order.created_at (cũng là UTC)
+        # =========================
+        # LẤY PAYMENT MỚI NHẤT
+        # =========================
+        latest_payment = None
+
+        if order.payment:
+            latest_payment = order.payment
+
+        # =========================
+        # COUNTDOWN CHỈ KHI:
+        # ORDER PENDING
+        # VÀ CHƯA PAYMENT SUCCESS
+        # =========================
+        is_paid = (
+                latest_payment
+                and latest_payment.status == PaymentStatus.SUCCESS
+        )
+
+        if order.status.name == 'PENDING' and not is_paid:
+            timeout_mins = current_app.config.get(
+                'ORDER_TIMEOUT_MINUTES',
+                1
+            )
+
             now = datetime.utcnow()
-            expiry_time = order.created_at + timedelta(minutes=timeout_mins)
+
+            expiry_time = (
+                    order.created_at +
+                    timedelta(minutes=timeout_mins)
+            )
 
             diff = (expiry_time - now).total_seconds()
+
             remaining_seconds = max(0, int(diff))
 
-            # Kiểm tra Log: Nếu diff dương (ví dụ: 59) là chuẩn!
-            print(f"DEBUG: Created At: {order.created_at} | Now UTC: {now} | Diff: {diff}")
+            print(
+                f"DEBUG: "
+                f"Created At: {order.created_at} | "
+                f"Now UTC: {now} | "
+                f"Diff: {diff}"
+            )
 
-        return render_template('orders.html', order=order, remaining=remaining_seconds)
+        return render_template(
+            'orders.html',
+            order=order,
+            remaining=remaining_seconds,
+            latest_payment=latest_payment
+        )
 
     @app.route('/order/cancel/<int:order_id>', methods=['POST'])
     @login_required
@@ -277,18 +368,62 @@ def init_routes(app):
     #         # Quay lại trang thanh toán để họ chọn lại phương thức payment
     #         return redirect(url_for('checkout', order_id=order_id))
 
+    @app.route("/payment/momo/<int:order_id>", methods=["POST"])
+    def momo_payment(order_id):
 
-    @app.route('/payment/momo/<int:order_id>', methods=['POST', 'GET'])
-    def pay_with_momo(order_id):
-        order = Order.query.get_or_404(order_id)
+        response_data = service.create_momo_payment(
+            order_id=order_id
+        )
 
-        # Test với chuỗi cực kỳ đơn giản trước
-        msg = f"Thanhtoandonhang{order.id}"
+        if response_data.get("resultCode") == 0:
+            return redirect(response_data["payUrl"])
 
-        result = service.create_momo_payment(order.id, int(order.total_amount), msg)
+        return jsonify(response_data), 400
 
-        if result.get('resultCode') == 0:
-            return redirect(result.get('payUrl'))
-        else:
-            # Nếu vẫn lỗi, in chuỗi raw_signature ra console để đối soát
-            return f"Lỗi MoMo: {result.get('message')}. Chi tiết: {result}", 400
+    @app.route("/payment/momo-ipn", methods=["POST"])
+    def momo_ipn():
+
+        data = request.json
+
+        service.handle_momo_ipn(data)
+
+        return jsonify({
+            "message": "success"
+        })
+
+    @app.route("/payment/momo-confirm")
+    def momo_confirm():
+
+        momo_order_id = request.args.get("orderId")
+
+        payment = Payment.query.filter_by(
+            gateway_order_id=momo_order_id
+        ).first()
+
+        if payment:
+            return redirect(
+                url_for(
+                    "order_detail",
+                    order_id=payment.order_id
+                )
+            )
+
+        flash("Không tìm thấy đơn hàng", "danger")
+
+        return redirect(url_for("home"))
+
+    @app.route("/api/check-in", methods=["POST"])
+    def check_in():
+        # Nhận dữ liệu QR từ thiết bị scan gửi lên
+        data = request.json
+        qr_code = data.get("qr_code")
+
+        if not qr_code:
+            return jsonify({"success": False, "message": "Mã QR không hợp lệ"}), 400
+
+        # Gọi service xử lý logic
+        result = service.process_check_in(qr_code=qr_code)
+
+        # Trả về kết quả theo mẫu chuẩn của bạn
+        status_code = result.pop("code")
+        return jsonify(result), status_code

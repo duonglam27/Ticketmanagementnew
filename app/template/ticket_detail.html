@@ -1,10 +1,128 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
-</head>
-<body>
-$END$
-</body>
-</html>
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Nút quay lại -->
+    <div class="mb-3">
+        <a href="{{ url_for('my_tickets') }}" class="text-decoration-none text-muted">
+            <i class="bi bi-arrow-left-circle-fill fs-4 align-middle"></i>
+            <span class="ms-1">Quay lại danh sách</span>
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <!-- Ticket Card -->
+            <div class="ticket-card bg-white shadow-lg rounded-4 overflow-hidden position-relative">
+                
+                <!-- Phần Poster Sự Kiện -->
+                <div class="position-relative">
+                    <img src="{{ ticket.showing.event.image_banner }}" class="w-100 object-fit-cover" style="height: 180px;" alt="Banner">
+                    <div class="position-absolute bottom-0 start-0 w-100 p-3 bg-dark bg-opacity-50 text-white">
+                        <h4 class="fw-bold mb-0 text-truncate">{{ ticket.showing.event.name }}</h4>
+                    </div>
+                </div>
+
+                <!-- Nội dung vé -->
+                <div class="p-4">
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <small class="text-muted d-block text-uppercase">Thời gian</small>
+                            <span class="fw-bold">{{ ticket.showing.start_time.strftime('%H:%M') }}</span>
+                            <small class="d-block text-muted">{{ ticket.showing.start_time.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-muted d-block text-uppercase">Địa điểm</small>
+                            <span class="fw-bold">{{ ticket.showing.event.location_name }}</span>
+                            <small class="d-block text-muted">{{ ticket.showing.event.city }}</small>
+                        </div>
+                    </div>
+
+                    <!-- Vết cắt vé (Ticket Notch) -->
+                    <div class="ticket-divider position-relative my-4">
+                        <div class="notch notch-left"></div>
+                        <div class="notch notch-right"></div>
+                        <hr class="border-dashed">
+                    </div>
+
+                    <!-- QR Code Section -->
+                    <div class="text-center py-2">
+                        <p class="text-muted small mb-3">Vui lòng đưa mã này cho nhân viên soát vé</p>
+                        
+                        {# Sử dụng API ngoài để tạo QR nhanh từ qr_code của vé #}
+                        <div class="qr-wrapper bg-white p-3 d-inline-block border rounded-4 shadow-sm mb-3">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={{ ticket.qr_code }}" 
+                                 alt="Ticket QR Code" class="img-fluid" style="width: 180px;">
+                        </div>
+                        
+                        <h5 class="fw-bold letter-spacing-2 text-primary mb-1">{{ ticket.ticket_code[:8] | upper }}...</h5>
+                        <span class="badge bg-success rounded-pill px-3">
+                            <i class="bi bi-check-circle-fill me-1"></i> VÉ HỢP LỆ
+                        </span>
+                    </div>
+
+                    <!-- Thông tin chi tiết ghế -->
+                    <div class="row mt-4 pt-3 border-top text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">KHU VỰC</small>
+                            <span class="fw-bold text-uppercase">{{ ticket.ticket_type.name }}</span>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">HÀNG/GHẾ</small>
+                            <span class="fw-bold fs-5">{{ ticket.seat.seat_number if ticket.seat else "Tự do" }}</span>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">GIÁ VÉ</small>
+                            <span class="fw-bold text-success">{{ "{:,.0f}".format(ticket.order_item.price) }}đ</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer của vé -->
+                <div class="bg-light p-3 text-center border-top">
+                    <small class="text-muted italic">Cảm ơn bạn đã đồng hành cùng {{ ticket.showing.event.organizer_brand }}!</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Hiệu ứng vết cắt vé */
+    .ticket-divider {
+        margin: 0 -1.5rem;
+    }
+    .border-dashed {
+        border: none;
+        border-top: 2px dashed #dee2e6;
+        height: 0;
+    }
+    .notch {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        background-color: #f8f9fa; /* Trùng với màu nền container */
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+    }
+    .notch-left { left: -15px; box-shadow: inset -5px 0 5px rgba(0,0,0,0.05); }
+    .notch-right { right: -15px; box-shadow: inset 5px 0 5px rgba(0,0,0,0.05); }
+
+    .letter-spacing-2 {
+        letter-spacing: 2px;
+    }
+    
+    .ticket-card {
+        transition: transform 0.3s ease;
+    }
+    
+    /* Responsive cho QR */
+    @media (max-width: 576px) {
+        .qr-wrapper img {
+            width: 150px;
+        }
+    }
+</style>
+{% endblock %}

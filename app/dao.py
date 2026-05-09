@@ -202,19 +202,29 @@ def get_organizer_events_full(user_id):
         .all()
     )
 
+
 def get_all_categories():
-    """
-    Trả về list category sạch: ['Music', 'Workshop']
-    """
-    raw = db.session.query(Event.category).distinct().all()
-    return [c[0] for c in raw if c[0]]
+    """Lấy danh sách category duy nhất từ các sự kiện đã APPROVED"""
 
+    categories = db.session.query(Event.category) \
+        .filter(Event.status == EventStatus.APPROVED) \
+        .distinct().all()
 
-def search_events_simple(keyword=None, category=None):
-    """
-    Dùng cho Home page (nhẹ, không eager load)
-    """
-    query = Event.query.filter(Event.status == EventStatus.APPROVED)
+    return [c[0] for c in categories if c[0]]
+
+def get_all_locations():
+    """Lấy danh sách các tỉnh thành duy nhất từ các sự kiện đã APPROVED"""
+    # Giả sử bạn dùng cột 'city' hoặc 'location_name'
+    locations = db.session.query(Event.city)\
+        .filter(Event.status == EventStatus.APPROVED)\
+        .distinct().all()
+    return [loc[0] for loc in locations if loc[0]]
+
+def search_events_simple(keyword=None, category=None, location=None):
+    # Sử dụng joinedload để nạp sẵn showings và ticket_types nhằm phục vụ hàm min_price
+    query = Event.query.options(
+        joinedload(Event.showings).joinedload(Showing.ticket_types)
+    ).filter(Event.status == EventStatus.APPROVED)
 
     if keyword:
         search = f"%{keyword}%"
@@ -226,7 +236,11 @@ def search_events_simple(keyword=None, category=None):
     if category and category != "Tất cả":
         query = query.filter(Event.category == category)
 
-    return query.all()
+    if location:
+        query = query.filter(Event.city == location)
+
+    # Sắp xếp sự kiện mới nhất lên đầu
+    return query.order_by(Event.id.desc()).all()
 
 
 def search_events_full(keyword=None, category=None, limit=None):
@@ -338,26 +352,54 @@ def create_ticket_type_nc(showing_id, name, base_price, total_quantity):
 # SEAT & TICKET (BULK)
 # ======================================================
 
-def bulk_create_seats_nc(showing_id, rows, cols):
+def get_ticket_by_id(ticket_id):
+
+    return Ticket.query.get(ticket_id)
+
+def get_user_tickets(user_id):
+    # Join chính xác theo tên Class Model
+    return Ticket.query.join(OrderItem).join(Order).filter(
+        Order.user_id == user_id
+    ).order_by(Ticket.id.desc()).all()
+
+def init_showing_seats_and_tickets(showing_id, rows, cols, ticket_type_id):
     seats = []
     for r in range(rows):
         row_label = chr(65 + r)
         for c in range(1, cols + 1):
             seats.append(Seat(showing_id=showing_id, seat_number=f"{row_label}{c}"))
-    db.session.add_all(seats)
-    return seats
 
-def init_tickets_from_seats_nc(showing_id, ticket_type_id, seats):
+    db.session.add_all(seats)
+    db.session.flush() # Lấy Seat ID
+
     tickets = []
     for s in seats:
         tickets.append(Ticket(
             showing_id=showing_id,
             ticket_type_id=ticket_type_id,
             seat_id=s.id,
-            status=TicketStatus.AVAILABLE # Đảm bảo đã import Enum TicketStatus
+            status=TicketStatus.AVAILABLE,
+            qr_code=str(uuid.uuid4()) # QR code sẵn sàng cho check-in
         ))
-    db.session.bulk_save_objects(tickets)
 
+    db.session.bulk_save_objects(tickets)
+    return len(seats)
+
+
+
+def get_ticket_by_code(qr_code_data):
+    """Tìm vé dựa trên dữ liệu QR code quét được"""
+    return Ticket.query.filter_by(qr_code=qr_code_data).first()
+
+def update_ticket_checkin(ticket_id):
+    """Cập nhật trạng thái vé thành USED và ghi nhận thời gian"""
+    ticket = Ticket.query.get(ticket_id)
+    if ticket:
+        ticket.status = TicketStatus.USED
+        ticket.checked_in_at = datetime.now()
+        db.session.commit()
+        return True
+    return False
 
 # ======================================================
 # SHOWING / BOOKING
@@ -632,3 +674,15 @@ def complete_payment_db(order, payment_method):
 
     db.session.add(order)
     return order
+
+
+# Checkin
+def get_by_qr(qr_code):
+    return Ticket.query.filter_by(qr_code=qr_code).first()
+
+def update_status(ticket, status, check_in_time=None):
+    ticket.status = status
+    if check_in_time:
+        ticket.checked_in_at = check_in_time
+    db.session.commit()
+    return ticket

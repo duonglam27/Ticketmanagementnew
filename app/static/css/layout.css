@@ -3,7 +3,11 @@
     background: #1abc9c;
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 1050; /* tăng lên cho đồng bộ Bootstrap */
+}
+
+.dropdown-menu {
+    z-index: 2000 !important;
 }
 
 .navbar-brand {

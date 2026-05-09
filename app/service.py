@@ -1,13 +1,19 @@
+import time
 from datetime import datetime
-
-from flask import current_app
-
+from flask import current_app, abort
 from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import RoleEnum, EventStatus, TicketType, TicketStatus, OrderStatus, Order
 from app import dao, db
 import cloudinary.uploader
-
+from app import db
+from app.config import Config
+from app.models import (
+    Order,
+    Payment,
+    PaymentMethod,
+    PaymentStatus
+)
 
 
 # --- USER SERVICES ---
@@ -37,6 +43,7 @@ def register_user(email, name, password, avatar=None):
         # Lỗi DB thực sự sẽ được xử lý ở đây nếu DAO raise lên
         raise e
 
+
 def authenticate_user(email, password):
     if not email or not password:
         return None
@@ -45,6 +52,7 @@ def authenticate_user(email, password):
     if user and check_password_hash(user.password_hash, password):
         return user
     return None
+
 
 def update_user_profile(user_id, name=None, avatar=None):
     user = dao.get_user_by_id(user_id)
@@ -61,6 +69,7 @@ def update_user_profile(user_id, name=None, avatar=None):
         return user
     return None
 
+
 def change_user_password(user_id, old_password, new_password):
     user = dao.get_user_by_id(user_id)
     if not user or not check_password_hash(user.password_hash, old_password):
@@ -69,21 +78,88 @@ def change_user_password(user_id, old_password, new_password):
     user.password_hash = generate_password_hash(new_password)
     return dao.update_user_db()
 
+def get_my_tickets_logic(user_id):
+    # 1. Lấy toàn bộ vé từ DAO (đã join qua Order)
+    tickets = dao.get_user_tickets(user_id)
+
+    # 2. Lọc lấy cả 3 trạng thái để kiểm tra
+    # Bạn có thể thêm bất kỳ status nào muốn hiện vào list này
+    valid_tickets = [
+        t for t in tickets
+        if t.status in [TicketStatus.SOLD, TicketStatus.USED, TicketStatus.AVAILABLE]
+    ]
+
+    return valid_tickets
+
+
+def get_ticket_detail_logic(ticket_id, user_id):
+    """
+    Logic: Lấy vé và kiểm tra xem vé có thuộc về user_id này không.
+    """
+    ticket = dao.get_ticket_by_id(ticket_id)
+
+    # 1. Nếu không tìm thấy vé
+    if not ticket:
+        return None
+
+    # 2. Kiểm tra bảo mật: Ticket -> OrderItem -> Order -> user_id
+    # Lưu ý: Cần kiểm tra kỹ các mối quan hệ (relationship) tránh lỗi NoneType
+    try:
+        owner_id = ticket.order_item.order.user_id
+        if owner_id != user_id:
+            abort(403)  # Không có quyền xem vé người khác
+    except AttributeError:
+        # Trường hợp dữ liệu rác, vé không gắn với đơn hàng nào
+        abort(404)
+
+    return ticket
+
+
+def scan_and_checkin_logic(qr_code_data):
+    """
+    Logic nghiệp vụ cho nhân viên soát vé
+    """
+    ticket = dao.get_ticket_by_code(qr_code_data)
+
+    if not ticket:
+        return {"success": False, "message": "Vé không tồn tại trong hệ thống!"}
+
+    # Kiểm tra nếu vé đã được dùng rồi
+    if ticket.status == TicketStatus.USED:
+        return {
+            "success": False,
+            "message": f"Vé này đã check-in vào lúc {ticket.checked_in_at.strftime('%H:%M')}"
+        }
+
+    # Kiểm tra nếu vé chưa thanh toán (Available nhưng chưa Sold)
+    if ticket.status != TicketStatus.SOLD:
+        return {"success": False, "message": "Vé này chưa được thanh toán thành công!"}
+
+    # Nếu mọi thứ OK, tiến hành check-in
+    dao.update_ticket_checkin(ticket.id)
+
+    return {
+        "success": True,
+        "message": "Check-in thành công!",
+        "event": ticket.showing.event.name,
+        "seat": ticket.seat.seat_number if ticket.seat else "Tự do"
+    }
+
 
 def parse_seat_config(config_str):
     # config_str = "5 hàng, 10 cột"
     parts = [int(s) for s in config_str.split() if s.isdigit()]
-    return parts[0], parts[1] # Trả về (5, 10)
+    return parts[0], parts[1]  # Trả về (5, 10)
 
 
 def create_event_complex_service(data, files, user_id):
     try:
-        # 1. Upload ảnh
+        # 1. Upload ảnh (Đảm bảo các key 'poster', 'banner', 'org_logo' khớp với HTML)
         poster_url = upload_to_cloud(files.get('poster'), "posters")
         banner_url = upload_to_cloud(files.get('banner'), "banners")
         logo_url = upload_to_cloud(files.get('org_logo'), "logos")
 
-        # 2. Tạo Event
+        # 2. Tạo Event - Sửa data_dict thành data
         new_event = dao.create_event_nc(
             data={
                 'name': data.get('name'),
@@ -101,49 +177,47 @@ def create_event_complex_service(data, files, user_id):
         )
         db.session.flush()
 
-        # 3. Lấy dữ liệu mảng (Lưu ý dấu [] khớp với HTML)
+        # 3. Lấy dữ liệu mảng
         start_times = data.getlist('start_time[]')
-        seat_configs = data.getlist('seat_numbers[]')  # "5x10"
+        seat_configs = data.getlist('seat_numbers[]')
         ticket_names = data.getlist('ticket_name[]')
         ticket_prices = data.getlist('ticket_price[]')
 
         for i in range(len(start_times)):
             if not start_times[i]: continue
 
-            # A. Tạo Showing
+            # A. Tạo Suất chiếu
             showing = dao.create_showing_nc(new_event.id, start_times[i])
             db.session.flush()
 
-            # B. Tạo TicketType (Dùng base_price cho đúng Model)
+            # B. Tạo Loại vé
+            price = float(ticket_prices[i]) if i < len(ticket_prices) else 0
             t_type = dao.create_ticket_type_nc(
                 showing_id=showing.id,
                 name=ticket_names[i] if i < len(ticket_names) else "Standard",
-                base_price=float(ticket_prices[i]) if i < len(ticket_prices) else 0,
-                total_quantity=0  # Sẽ cập nhật sau khi đếm số ghế
+                base_price=price,
+                total_quantity=0  # Sẽ cập nhật sau khi tạo ghế
             )
             db.session.flush()
 
-            # C. QUY TRÌNH TẠO GHẾ VÀ VÉ (QUAN TRỌNG)
+            # C. Tạo Ghế và Vé (Tự động sinh QR code bên trong)
             if i < len(seat_configs) and "x" in seat_configs[i]:
                 rows, cols = map(int, seat_configs[i].split('x'))
 
-                # 1. Tạo Seats trước
-                created_seats = dao.bulk_create_seats_nc(showing.id, rows, cols)
-                db.session.flush()  # Để lấy ID của từng Seat
+                # Sử dụng hàm helper v2 (nhớ bỏ db.session.commit() trong hàm đó)
+                total_seats = dao.init_showing_seats_and_tickets(
+                    showing.id, rows, cols, t_type.id
+                )
+                t_type.total_quantity = total_seats
 
-                # 2. Tạo Tickets dựa trên Seat ID đã có
-                dao.init_tickets_from_seats_nc(showing.id, t_type.id, created_seats)
-
-                # 3. Cập nhật lại total_quantity của TicketType dựa trên số ghế thực tế
-                t_type.total_quantity = len(created_seats)
-
+        # CHỐT HẠ: Chỉ commit 1 lần duy nhất để bảo đảm an toàn dữ liệu
         db.session.commit()
         return new_event
+
     except Exception as e:
         db.session.rollback()
+        print(f"Lỗi tạo sự kiện: {str(e)}")
         raise e
-
-
 
 def upload_to_cloud(file, folder_name):
     """Helper xử lý upload an toàn"""
@@ -287,6 +361,7 @@ def get_my_events(user_id, tab):
 
     return result
 
+
 def get_event_details(event_id):
     event = dao.get_event_details(event_id)
     if not event:
@@ -309,6 +384,7 @@ def get_event_details(event_id):
         "target_ticket_id": available_tickets[0].id if len(available_tickets) == 1 else None
     }
 
+
 def get_event_report(event_id):
     event = dao.get_event_details(event_id)
 
@@ -329,7 +405,7 @@ def get_event_report(event_id):
     }
 
 
-#Order
+# Order
 def process_booking(user_id, ticket_type_id, quantity):
     try:
         print("\n========== START BOOKING ==========")
@@ -553,6 +629,7 @@ def auto_cancel_order(order_id):
             db.session.rollback()
             print(f"--- LỖI HỆ THỐNG KHI HỦY: {str(e)} ---")
 
+
 # def process_payment_service(order_id, user_id, payment_method):
 #     try:
 #         order = dao.get_order_for_payment(order_id)
@@ -590,65 +667,180 @@ import json
 import requests
 import uuid
 
+from datetime import datetime
 
-def create_momo_payment(order_id, amount, order_info):
-    momo_config = {
-        'partner_code': 'MOMO',
-        'access_key': 'F8B6Eu7sL9gy97h7',
-        'secret_key': 'K97U9Gv9E9ef968hi98X6o57vr7s366C',
-        'endpoint': 'https://test-payment.momo.vn/v2/gateway/api/create',
-        'return_url': 'http://127.0.0.1:5000/payment/momo-confirm',
-        'notify_url': 'http://127.0.0.1:5000/payment/momo-ipn'
-    }
 
-    # 1. Chuẩn hóa dữ liệu
-    int_amount = int(amount)
+def create_momo_payment(order_id):
+    order = Order.query.get(order_id)
+
+    if not order:
+        raise ValueError("Order không tồn tại")
+
+    endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
+
+    amount = str(int(order.total_amount))
+
     request_id = str(uuid.uuid4())
-    order_id_momo = f"{order_id}-{request_id[:8]}"
-    request_type = "captureWallet"
-    extra_data = ""
-    safe_info = order_info.replace("#", "").strip()
 
-    # 2. Tạo chuỗi Raw Hash (Lưu ý: amount trong chuỗi băm phải là dạng chuỗi số)
+    order_id_momo = f"ORD{order.id}-{request_id[:8]}"
+
+    order_info = f"Thanh toan don hang {order.id}"
+
     raw_signature = (
-        f"accessKey={momo_config['access_key']}"
-        f"&amount={int_amount}"
-        f"&extraData={extra_data}"
-        f"&ipnUrl={momo_config['notify_url']}"
+        f"accessKey={Config.MOMO_ACCESS_KEY}"
+        f"&amount={amount}"
+        f"&extraData="
+        f"&ipnUrl={Config.BASE_URL}/payment/momo-ipn"
         f"&orderId={order_id_momo}"
-        f"&orderInfo={safe_info}"
-        f"&partnerCode={momo_config['partner_code']}"
-        f"&redirectUrl={momo_config['return_url']}"
+        f"&orderInfo={order_info}"
+        f"&partnerCode={Config.MOMO_PARTNER_CODE}"
+        f"&redirectUrl={Config.BASE_URL}/payment/momo-confirm"
         f"&requestId={request_id}"
-        f"&requestType={request_type}"
+        f"&requestType=captureWallet"
     )
 
-    # ĐƯA LỆNH PRINT RA ĐÂY ĐỂ DEBUG
-    print(f"--- DEBUG RAW STRING ---\n{raw_signature}\n------------------------")
-
-    # 3. Ký HMAC-SHA256
     signature = hmac.new(
-        momo_config['secret_key'].encode('utf-8'),
-        raw_signature.encode('utf-8'),
+        Config.MOMO_SECRET_KEY.encode("utf-8"),
+        raw_signature.encode("utf-8"),
         hashlib.sha256
     ).hexdigest()
 
-    # 4. Payload gửi đi
     payload = {
-        "partnerCode": momo_config['partner_code'],
-        "partnerName": "Test Payment",
+        "partnerCode": Config.MOMO_PARTNER_CODE,
+        "partnerName": "Test",
         "storeId": "MomoStore",
         "requestId": request_id,
-        "amount": int(amount),
+        "amount": amount,
         "orderId": order_id_momo,
-        "orderInfo": safe_info,
-        "redirectUrl": momo_config['return_url'],
-        "ipnUrl": momo_config['notify_url'],
+        "orderInfo": order_info,
+        "redirectUrl": f"{Config.BASE_URL}/payment/momo-confirm",
+        "ipnUrl": f"{Config.BASE_URL}/payment/momo-ipn",
         "lang": "vi",
-        "extraData": extra_data,
-        "requestType": request_type,
+        "extraData": "",
+        "requestType": "captureWallet",
         "signature": signature
     }
 
-    response = requests.post(momo_config['endpoint'], json=payload)
-    return response.json()
+    data = json.dumps(payload)
+
+    response = requests.post(
+        endpoint,
+        data=data,
+        headers={
+            "Content-Type": "application/json",
+            "Content-Length": str(len(data))
+        }
+    )
+
+    response_data = response.json()
+
+    # ======================
+    # CREATE PAYMENT DB
+    # ======================
+
+    payment = Payment(
+        order_id=order.id,
+        amount=float(amount),
+        method=PaymentMethod.MOMO,
+        status=PaymentStatus.PENDING,
+
+        transaction_id=request_id,
+
+        gateway_order_id=order_id_momo,
+
+        gateway_response=json.dumps(response_data)
+    )
+
+    if response_data.get("resultCode") != 0:
+        payment.status = PaymentStatus.FAILED
+
+    db.session.add(payment)
+    db.session.commit()
+
+    return response_data
+
+
+def handle_momo_ipn(data):
+    request_id = data.get("requestId")
+    result_code = data.get("resultCode")
+    trans_id = data.get("transId")
+
+    payment = Payment.query.filter_by(transaction_id=request_id).first()
+
+    if not payment:
+        return False
+
+    if payment.status == PaymentStatus.SUCCESS:
+        return True
+
+    payment.gateway_response = json.dumps(data)
+    payment.gateway_transaction_id = str(trans_id)
+
+    # =========================================================
+    # XỬ LÝ KHI THANH TOÁN THÀNH CÔNG (result_code == 0)
+    # =========================================================
+    if result_code == 0:
+        payment.status = PaymentStatus.SUCCESS
+        payment.paid_at = datetime.utcnow()
+
+        if payment.order:
+            # 1. Cập nhật trạng thái Đơn hàng
+            payment.order.status = OrderStatus.PAID
+
+            # 2. CẬP NHẬT TRẠNG THÁI TỪNG VÉ SANG SOLD
+            # Duyệt qua tất cả các item trong đơn hàng
+            for item in payment.order.items:
+                if item.ticket:
+                    item.ticket.status = TicketStatus.SOLD
+                    # (Tùy chọn) Ghi nhận ngày bán vào vé nếu có trường sold_at
+                    # item.ticket.sold_at = datetime.utcnow()
+
+            print(f"--- Đã chuyển trạng thái vé sang SOLD cho đơn hàng #{payment.order.id} ---")
+
+    # =========================
+    # KHI THANH TOÁN THẤT BẠI
+    # =========================
+    else:
+        payment.status = PaymentStatus.FAILED
+        # Lưu ý: Bạn có thể chọn giữ Order ở trạng thái PENDING
+        # để khách thanh toán lại, hoặc hủy luôn tùy logic app.
+
+    db.session.commit()
+    return True
+
+def process_check_in(self, qr_code, current_user_id=None):
+    ticket = self.ticket_dao.get_by_qr(qr_code)
+
+    # 1. Kiểm tra tồn tại
+    if not ticket:
+        return {"success": False, "message": "Vé không tồn tại", "code": 404}
+
+    # 2. Kiểm tra quyền sở hữu (Security check cho User)
+    # Truy xuất user_id thông qua mối quan hệ Ticket -> OrderItem -> Order
+    if ticket.order_item and ticket.order_item.order:
+        owner_id = ticket.order_item.order.user_id
+        if current_user_id and owner_id != current_user_id:
+            return {"success": False, "message": "Vé này không thuộc về bạn", "code": 403}
+    else:
+        return {"success": False, "message": "Vé chưa được thanh toán hoàn tất", "code": 400}
+
+    # 3. Kiểm tra trạng thái vé
+    if ticket.status == TicketStatus.USED:
+        return {"success": False, "message": "Vé đã được sử dụng trước đó", "code": 400}
+
+    if ticket.status != TicketStatus.SOLD:
+        return {"success": False, "message": "Vé không ở trạng thái có thể check-in", "code": 400}
+
+    # 4. Thực hiện Check-in
+    updated_ticket = self.ticket_dao.update_status(
+        ticket,
+        TicketStatus.USED,
+        check_in_time=datetime.utcnow()
+    )
+
+    return {
+        "success": True,
+        "message": "Check-in thành công",
+        "ticket_code": updated_ticket.ticket_code,
+        "code": 200
+    }

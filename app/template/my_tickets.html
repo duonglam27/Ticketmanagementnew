@@ -1,10 +1,116 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
-</head>
-<body>
-$END$
-</body>
-</html>
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <h2 class="text-center mb-4 fw-bold text-primary">VÉ CỦA TÔI</h2>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            {# Kiểm tra nếu mảng tickets có dữ liệu #}
+            {% if tickets and tickets|length > 0 %}
+                {% for ticket in tickets %}
+                <div class="card mb-3 border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="card-body p-0">
+                        <div class="d-flex">
+                            <!-- Phần bên trái: Hình ảnh Poster -->
+                            <div class="flex-shrink-0" style="width: 110px;">
+                                {% if ticket.showing and ticket.showing.event %}
+                                    <img src="{{ ticket.showing.event.image_poster }}"
+                                         class="img-fluid h-100 object-fit-cover"
+                                         alt="Poster"
+                                         style="min-height: 150px;">
+                                {% else %}
+                                    <div class="bg-light h-100 d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-image text-muted"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Phần bên phải: Thông tin vé -->
+                            <div class="p-3 flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="fw-bold mb-1 text-truncate" style="max-width: 180px;">
+                                        {{ ticket.showing.event.name if ticket.showing else "Sự kiện không xác định" }}
+                                    </h6>
+
+                                    {# Hiển thị Badge dựa trên giá trị Enum .value #}
+                                    <span class="badge rounded-pill
+                                        {% if ticket.status.value == 'sold' %}bg-success
+                                        {% elif ticket.status.value == 'used' %}bg-secondary
+                                        {% elif ticket.status.value == 'available' %}bg-warning text-dark
+                                        {% else %}bg-danger{% endif %}">
+
+                                        {% if ticket.status.value == 'sold' %}Sẵn sàng
+                                        {% elif ticket.status.value == 'used' %}Đã dùng
+                                        {% elif ticket.status.value == 'available' %}Chờ thanh toán
+                                        {% else %}{{ ticket.status.value }}{% endif %}
+                                    </span>
+                                </div>
+
+                                <p class="text-muted small mb-1">
+                                    <i class="bi bi-calendar-event me-1"></i>
+                                    {{ ticket.showing.start_time.strftime('%H:%M | %d/%m/%Y') if ticket.showing else "N/A" }}
+                                </p>
+                                <p class="text-dark small mb-2">
+                                    <i class="bi bi-chair me-1"></i>
+                                    Ghế: <strong>{{ ticket.seat.seat_number if ticket.seat else "Chưa xếp" }}</strong>
+                                </p>
+
+                                {# Logic nút bấm #}
+                                {% if ticket.status.value == 'sold' %}
+                                    <a href="{{ url_for('view_ticket_detail', ticket_id=ticket.id) }}"
+                                       class="btn btn-primary btn-sm w-100 rounded-pill shadow-sm">
+                                        <i class="bi bi-qr-code-scan me-1"></i> Xem mã QR
+                                    </a>
+                                {% elif ticket.status.value == 'available' %}
+                                    <button class="btn btn-outline-warning btn-sm w-100 rounded-pill disabled">
+                                        Đang xử lý thanh toán...
+                                    </button>
+                                {% else %}
+                                    <button class="btn btn-light btn-sm w-100 rounded-pill disabled text-muted">
+                                        <i class="bi bi-check2-all me-1"></i>
+                                        Đã dùng {{ ticket.checked_in_at.strftime('%H:%M') if ticket.checked_in_at }}
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                {# Giao diện khi không có vé #}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="bi bi-ticket-perforated text-muted" style="font-size: 5rem; opacity: 0.3;"></i>
+                    </div>
+                    <h5 class="text-muted">Bạn chưa có vé nào</h5>
+                    <p class="text-muted small">Các vé đã mua thành công sẽ xuất hiện tại đây.</p>
+                    <a href="/" class="btn btn-primary px-4 rounded-pill mt-2">
+                        Khám phá sự kiện ngay
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* CSS bổ sung để giao diện mượt hơn */
+    .card {
+        transition: all 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .object-fit-cover {
+        object-fit: cover;
+    }
+    .text-truncate {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+{% endblock %}

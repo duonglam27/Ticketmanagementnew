@@ -2,130 +2,326 @@
 
 {% block content %}
 <div class="container py-5">
+
     <div class="row justify-content-center">
+
         <div class="col-lg-8">
+
+            <!-- STATUS CARD -->
             <div class="card bg-dark text-light border-0 shadow-lg mb-4">
+
                 <div class="card-body p-4 text-center">
-                    {% if order.status.name == 'PENDING' %}
-                    <h4 class="text-warning fw-bold mb-3">Đang chờ thanh toán</h4>
-                    <p class="text-secondary mb-3">Vui lòng hoàn tất thanh toán để giữ chỗ của bạn.</p>
+
+                    {% set is_paid =
+                    latest_payment and latest_payment.status.value == 'success' %}
+
+                    {% if is_paid %}
+
+                    <h4 class="text-success fw-bold mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Thanh toán thành công
+                    </h4>
+
+                    {% elif order.status.name == 'PENDING' %}
+
+                    <h4 class="text-warning fw-bold mb-3">
+                        Đang chờ thanh toán
+                    </h4>
+
+                    <p class="text-secondary mb-3">
+                        Vui lòng hoàn tất thanh toán để giữ chỗ của bạn.
+                    </p>
+
                     <div class="d-inline-block bg-secondary bg-opacity-25 rounded-pill px-4 py-2 border border-warning">
                         <i class="fas fa-clock me-2 text-warning"></i>
-                        Thời gian còn lại: <span id="countdown" class="fw-bold">5:00</span>
+
+                        Thời gian còn lại:
+                        <span id="countdown" class="fw-bold">
+                            05:00
+                        </span>
                     </div>
-                    {% elif order.status.name == 'PAID' %}
-                    <h4 class="text-success fw-bold mb-0"><i class="fas fa-check-circle me-2"></i>Thanh toán thành công
-                    </h4>
+
                     {% else %}
-                    <h4 class="text-danger fw-bold mb-0">Đơn hàng đã bị hủy</h4>
+
+                    <h4 class="text-danger fw-bold mb-0">
+                        Đơn hàng đã bị hủy
+                    </h4>
+
                     {% endif %}
+
                 </div>
+
             </div>
 
+            <!-- ORDER CARD -->
             <div class="card bg-dark text-light border-0 shadow-lg">
+
                 <div class="card-header bg-secondary bg-opacity-10 border-bottom border-secondary p-4">
-                    <h5 class="mb-0 fw-bold">Thông tin đơn hàng #{{ order.id }}</h5>
+
+                    <h5 class="mb-0 fw-bold">
+                        Thông tin đơn hàng #{{ order.id }}
+                    </h5>
+
                 </div>
+
                 <div class="card-body p-4">
+
+                    <!-- PAYMENT INFO -->
+                    {% if latest_payment %}
+
+                    <div class="mb-4 p-3 rounded bg-secondary bg-opacity-10 border border-secondary border-opacity-25">
+
+                        <div class="row">
+
+                            <div class="col-md-6 mb-2">
+                                <strong>Phương thức:</strong>
+                                {{ latest_payment.method.value.upper() }}
+                            </div>
+
+                            <div class="col-md-6 mb-2">
+                                <strong>Trạng thái:</strong>
+
+                                {% if latest_payment.status.value == 'success' %}
+                                <span class="text-success">
+                                    SUCCESS
+                                </span>
+
+                                {% elif latest_payment.status.value == 'pending' %}
+                                <span class="text-warning">
+                                    PENDING
+                                </span>
+
+                                {% else %}
+                                <span class="text-danger">
+                                    FAILED
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            {% if latest_payment.transaction_id %}
+                            <div class="col-12 mb-2">
+
+                                <strong>Transaction ID:</strong>
+
+                                <span class="text-secondary">
+                                    {{ latest_payment.transaction_id }}
+                                </span>
+
+                            </div>
+                            {% endif %}
+
+                            {% if latest_payment.paid_at %}
+                            <div class="col-12">
+
+                                <strong>Thanh toán lúc:</strong>
+
+                                {{ latest_payment.paid_at }}
+
+                            </div>
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                    {% endif %}
+
+                    <!-- ORDER TABLE -->
                     <div class="table-responsive">
+
                         <table class="table table-dark table-borderless align-middle">
+
                             <thead class="text-secondary small text-uppercase">
+
                             <tr>
                                 <th>Loại vé</th>
                                 <th>Mã vé/Ghế</th>
                                 <th class="text-end">Giá tiền</th>
                             </tr>
+
                             </thead>
+
                             <tbody>
+
                             {% for item in order.items %}
+
                             <tr class="border-bottom border-secondary border-opacity-25">
+
                                 <td class="py-3">
-                                    <div class="fw-bold">{{ item.ticket.ticket_type.name }}</div>
-                                    <div class="small text-secondary">{{ item.ticket.showing.event.name }}</div>
+
+                                    <div class="fw-bold">
+                                        {{ item.ticket.ticket_type.name }}
+                                    </div>
+
+                                    <div class="small text-secondary">
+                                        {{ item.ticket.showing.event.name }}
+                                    </div>
+
                                 </td>
+
                                 <td>
+
                                     {% if item.ticket.seat %}
-                                    <span class="badge bg-success">Ghế: {{ item.ticket.seat.seat_number }}</span>
+
+                                    <span class="badge bg-success">
+                                        Ghế:
+                                        {{ item.ticket.seat.seat_number }}
+                                    </span>
+
                                     {% else %}
-                                    <span class="badge bg-secondary">Mã: #{{ item.ticket.id }}</span>
+
+                                    <span class="badge bg-secondary">
+                                        Mã:
+                                        #{{ item.ticket.id }}
+                                    </span>
+
                                     {% endif %}
+
                                 </td>
-                                <td class="text-end fw-bold">{{ "{:,.0f}".format(item.price) }} đ</td>
+
+                                <td class="text-end fw-bold">
+
+                                    {{ "{:,.0f}".format(item.price) }} đ
+
+                                </td>
+
                             </tr>
+
                             {% endfor %}
+
                             </tbody>
+
                             <tfoot>
+
                             <tr>
-                                <td colspan="2" class="pt-4 text-secondary">Tổng cộng</td>
-                                <td class="pt-4 text-end text-success fs-4 fw-bold">{{
-                                    "{:,.0f}".format(order.total_amount) }} đ
+
+                                <td colspan="2" class="pt-4 text-secondary">
+                                    Tổng cộng
                                 </td>
+
+                                <td class="pt-4 text-end text-success fs-4 fw-bold">
+                                    {{ "{:,.0f}".format(order.total_amount) }} đ
+                                </td>
+
                             </tr>
+
                             </tfoot>
+
                         </table>
+
                     </div>
 
-                    {% if order.status.name == 'PENDING' %}
+                    <!-- ACTIONS -->
+                    {% if not is_paid and order.status.name == 'PENDING' %}
+
                     <div class="mt-4 pt-4 border-top border-secondary">
+
                         <div class="row g-3">
+
                             <div class="col-md-6">
-                                <form action="{{ url_for('cancel_order', order_id=order.id) }}" method="POST"
-                                      style="display:inline;">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+
+                                <form action="{{ url_for('cancel_order', order_id=order.id) }}"
+                                      method="POST">
+
+                                    <button type="submit"
+                                            class="btn btn-outline-danger btn-sm"
                                             onclick="return confirm('Bạn có chắc muốn hủy đơn hàng này không?')">
-                                        <i class="fas fa-times me-1"></i> Hủy đơn
+
+                                        <i class="fas fa-times me-1"></i>
+
+                                        Hủy đơn
+
                                     </button>
+
                                 </form>
+
                             </div>
+
                             <div class="col-md-6">
-                                <!-- Ví dụ nút bấm trong file template của Lâm -->
-                                <form action="{{ url_for('pay_with_momo', order_id=order.id) }}" method="POST">
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <img src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png"
-                                             width="20" class="me-2">
-                                        Thanh toán ngay bằng MoMo
+
+                                <form action="{{ url_for('momo_payment', order_id=order.id) }}"
+                                      method="POST">
+
+                                    <button type="submit"
+                                            class="btn btn-primary w-100 py-2 fw-bold">
+
+                                        <img
+                                                src="https://developers.momo.vn/v3/assets/images/MOMO-Logo-App-6262c3743a290ef02396a24ea2b66c35.png"
+                                                width="24"
+                                                class="me-2 rounded shadow-sm">
+
+                                        Thanh toán qua MoMo
+
                                     </button>
+
                                 </form>
+
                             </div>
+
                         </div>
+
                     </div>
+
                     {% endif %}
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
+
 </div>
 
 <script>
+
     function startTimer(duration, display) {
-        var timer = duration, minutes, seconds;
-        var interval = setInterval(function () {
-            minutes = parseInt(timer / 60, 10);
-            seconds = parseInt(timer % 60, 10);
+
+        let timer = duration;
+
+        let interval = setInterval(function () {
+
+            let minutes = parseInt(timer / 60, 10);
+
+            let seconds = parseInt(timer % 60, 10);
 
             minutes = minutes < 10 ? "0" + minutes : minutes;
+
             seconds = seconds < 10 ? "0" + seconds : seconds;
 
             display.textContent = minutes + ":" + seconds;
 
             if (--timer < 0) {
+
                 clearInterval(interval);
-                location.reload(); // Reload để Backend xác nhận đã hủy
+
+                location.reload();
+
             }
+
         }, 1000);
+
     }
 
     window.onload = function () {
-        // Lấy số giây còn lại từ biến 'remaining' mà Backend truyền sang
-        // Nếu không có (đơn đã hủy/thanh toán), mặc định là 0
-        var remainingSeconds = {{ remaining | default(0) }};
-        var display = document.querySelector('#countdown');
+
+        let remainingSeconds = {{ remaining | default(0) }};
+
+        let display = document.querySelector('#countdown');
 
         if (display && remainingSeconds > 0) {
+
             startTimer(remainingSeconds, display);
+
         } else if (display) {
+
             display.textContent = "00:00";
+
         }
+
     };
+
 </script>
+
 {% endblock %}

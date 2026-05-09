@@ -1,10 +1,130 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
-</head>
-<body>
-$END$
-</body>
-</html>
+{% extends "layout/base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+
+            <!-- Title -->
+            <div class="text-center mb-4">
+                <h3 class="fw-bold">📷 MÁY QUÉT SOÁT VÉ</h3>
+                <p class="text-muted">Đưa mã QR vào khung camera để kiểm tra vé</p>
+            </div>
+
+            <!-- Scanner -->
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-3">
+
+                    <div id="reader" class="rounded-4 overflow-hidden"></div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button id="startBtn" class="btn btn-success w-50">
+                            ▶ Bắt đầu quét
+                        </button>
+                        <button id="stopBtn" class="btn btn-outline-danger w-50">
+                            ⛔ Dừng
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div id="result" class="alert mt-4 d-none text-center rounded-4 shadow-sm">
+                <h5 id="status-text" class="fw-bold"></h5>
+                <p id="info-text" class="mb-0"></p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- QR Scanner -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+    let scanner = null;
+    let isProcessing = false;
+
+    function showResult(success, message, info = "") {
+        const resultDiv = document.getElementById("result");
+
+        resultDiv.classList.remove("d-none", "alert-success", "alert-danger");
+
+        if (success) {
+            resultDiv.classList.add("alert-success");
+            document.getElementById("status-text").innerText = "✅ HỢP LỆ";
+            document.getElementById("info-text").innerText = info;
+        } else {
+            resultDiv.classList.add("alert-danger");
+            document.getElementById("status-text").innerText = "❌ KHÔNG HỢP LỆ";
+            document.getElementById("info-text").innerText = message;
+        }
+    }
+
+    async function onScanSuccess(decodedText) {
+
+        if (isProcessing) return;
+        isProcessing = true;
+
+        // 🚨 TẮT CAMERA NGAY LẬP TỨC
+        try {
+            await scanner.clear();
+        } catch (e) {
+            console.log("Scanner already stopped");
+        }
+
+        showResult(true, "Đang kiểm tra...", "");
+
+        fetch('/staff/verify-ticket', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ qr_code: decodedText })
+        })
+        .then(res => res.json())
+        .then(data => {
+
+            if (data.success) {
+                showResult(true, "", `Ghế: ${data.seat} - Sự kiện: ${data.event}`);
+                // new Audio("/static/success.mp3").play(); // optional
+            } else {
+                showResult(false, data.message);
+            }
+
+        })
+        .catch(() => {
+            showResult(false, "Lỗi kết nối server");
+        });
+    }
+
+    function startScanner() {
+
+        isProcessing = false;
+
+        scanner = new Html5QrcodeScanner("reader", {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true
+        });
+
+        scanner.render(onScanSuccess);
+    }
+
+    function stopScanner() {
+        isProcessing = false;
+
+        if (scanner) {
+            scanner.clear();
+        }
+
+        document.getElementById("reader").innerHTML = "";
+    }
+
+    document.getElementById("startBtn").addEventListener("click", startScanner);
+    document.getElementById("stopBtn").addEventListener("click", stopScanner);
+
+</script>
+
+{% endblock %}

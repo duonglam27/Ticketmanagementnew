@@ -12,3 +12,9 @@ class Config:
     # ĐỔI THÀNH UTC ĐỂ KHỚP VỚI datetime.utcnow() TRONG CODE
     SCHEDULER_TIMEZONE = "UTC"
     SCHEDULER_API_ENABLED = True
+
+    MOMO_PARTNER_CODE = "MOMO"
+    MOMO_ACCESS_KEY = "F8BBA842ECF85"
+    MOMO_SECRET_KEY = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+
+    BASE_URL = "https://usage-neatly-grievous.ngrok-free.dev"

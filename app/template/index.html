@@ -2,17 +2,39 @@
 
 {% block content %}
 <div class="bg-dark py-2 mb-3 border-bottom border-secondary sticky-top" style="top: 0; z-index: 1020;">
-    <div class="container d-flex justify-content-between align-items-center flex-wrap">
+    <div class="container d-flex justify-content-between align-items-center">
+        <!-- Phần Category bên trái -->
         <div class="d-flex gap-4 overflow-auto no-scrollbar py-1">
-            {% set cats = ['Nhạc sống', 'Sân khấu', 'Thể thao', 'Workshop', 'Trải nghiệm', 'Khác'] %}
-
-
-            {% for cat in cats %}
-            <a href="{{ url_for('home', cat=cat, q=request.args.get('q', '')) }}"
-               class="text-decoration-none small transition-all {{ 'text-success fw-bold' if request.args.get('cat') == cat else 'text-light opacity-75' }}">
+            <a href="{{ url_for('home', q=request.args.get('q', ''), loc=request.args.get('loc', '')) }}"
+               class="text-decoration-none small {{ 'text-success fw-bold' if not request.args.get('cat') else 'text-light opacity-75' }}">
+                Tất cả
+            </a>
+            {% for cat in categories %}
+            <a href="{{ url_for('home', cat=cat, q=request.args.get('q', ''), loc=request.args.get('loc', '')) }}"
+               class="text-decoration-none small {{ 'text-success fw-bold' if request.args.get('cat') == cat else 'text-light opacity-75' }}">
                 {{ cat }}
             </a>
             {% endfor %}
+        </div>
+
+        <!-- Dropdown chọn Địa điểm bên phải -->
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-light dropdown-toggle border-0 opacity-75" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-map-marker-alt me-1"></i>
+                {{ request.args.get('loc') if request.args.get('loc') else 'Toàn quốc' }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow">
+                <li><a class="dropdown-item small" href="{{ url_for('home', cat=request.args.get('cat', ''), q=request.args.get('q', '')) }}">Toàn quốc</a></li>
+                <li><hr class="dropdown-divider"></li>
+                {% for loc in locations %}
+                <li>
+                    <a class="dropdown-item small {{ 'active' if request.args.get('loc') == loc }}"
+                       href="{{ url_for('home', loc=loc, cat=request.args.get('cat', ''), q=request.args.get('q', '')) }}">
+                        {{ loc }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
         </div>
     </div>
 </div>
@@ -46,11 +68,11 @@
         <div>
             <h4 class="fw-bold mb-1 text-black">
                 {% if request.args.get('q') %}
-                    Kết quả cho "{{ request.args.get('q') }}"
+                Kết quả cho "{{ request.args.get('q') }}"
                 {% elif request.args.get('cat') %}
-                    Thể loại: {{ request.args.get('cat') }}
+                Thể loại: {{ request.args.get('cat') }}
                 {% else %}
-                    Sự kiện nổi bật
+                Sự kiện nổi bật
                 {% endif %}
             </h4>
             <p class="text-secondary small mb-0">Khám phá những trải nghiệm tuyệt vời nhất</p>
@@ -89,8 +111,14 @@
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-success fw-bold">Từ 500.000 đ</span>
-                            <span class="text-secondary opacity-50 x-small">Chi tiết <i class="fas fa-chevron-right ms-1"></i></span>
+                    <span class="text-success fw-bold">
+                        {# Gọi trực tiếp property min_price mà không lo bị chậm #}
+                        Từ {{ "{:,.0f}".format(e.min_price) }} đ
+                    </span>
+                            <a href="{{ url_for('event_detail', event_id=e.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                Chi tiết
+                            </a>
                         </div>
                     </div>
                 </a>

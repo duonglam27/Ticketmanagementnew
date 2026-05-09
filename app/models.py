@@ -13,6 +13,7 @@ class RoleEnum(enum.Enum):
     ADMIN = "admin"
     ORGANIZER = "organizer"
     USER = "user"
+    STAFF="staff"
 
 
 class OrderStatus(enum.Enum):
@@ -25,6 +26,8 @@ class TicketStatus(enum.Enum):
     AVAILABLE = "available"
     LOCKED = "locked"
     SOLD = "sold"
+    USED = "used"
+    CANCELLED = "cancelled"
 
 
 class PaymentStatus(enum.Enum):
@@ -70,6 +73,9 @@ class User(db.Model, UserMixin):
 
     def is_organizer(self):
         return self.role == RoleEnum.ORGANIZER
+
+    def is_staff(self):
+        return self.role == RoleEnum.STAFF
 
     def has_role(self, role):
         """
@@ -195,13 +201,24 @@ class Ticket(db.Model):
     status = db.Column(db.Enum(TicketStatus), default=TicketStatus.AVAILABLE)
     locked_until = db.Column(db.DateTime)
 
-    checked_in = db.Column(db.Boolean, default=False)
     checked_in_at = db.Column(db.DateTime)
+    qr_code = db.Column(db.String(255),unique=True,default=lambda: str(uuid.uuid4()))
 
+    order_item = db.relationship(
+        "OrderItem",
+        back_populates="ticket",  # Phải khớp với tên biến bên class OrderItem
+        uselist=False
+    )
 
     __table_args__ = (
         db.UniqueConstraint('seat_id', name='uq_ticket_seat'),
     )
+
+    def get_display_status(self):
+        # 'self.status' lấy giá trị status của bản ghi hiện tại
+        if self.status == TicketStatus.SOLD:
+            return f"Vé đã bán - Giá: {self.price}đ"
+        return "Vé còn trống"
 
 
 # =========================
@@ -238,7 +255,11 @@ class OrderItem(db.Model):
 
     price = db.Column(db.Float)
 
-    ticket = relationship('Ticket')
+    ticket = db.relationship(
+        "Ticket",
+        back_populates="order_item",  # Phải khớp với tên biến bên class Ticket
+        uselist=False
+    )
 
     __table_args__ = (
         db.UniqueConstraint('ticket_id', name='uq_ticket_orderitem'),
@@ -248,16 +269,45 @@ class OrderItem(db.Model):
 # =========================
 # PAYMENT
 # =========================
-
 class Payment(db.Model):
     __tablename__ = 'payments'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'))
-    amount = db.Column(db.Float)
-    method = db.Column(db.Enum(PaymentMethod))
-    status = db.Column(db.Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    order_id = db.Column(
+        db.Integer,
+        db.ForeignKey('orders.id')
+    )
 
+    amount = db.Column(
+        db.Float,
+        nullable=False
+    )
+
+    method = db.Column(
+        db.Enum(PaymentMethod),
+        nullable=False
+    )
+
+    status = db.Column(
+        db.Enum(PaymentStatus),
+        default=PaymentStatus.PENDING
+    )
+
+    # Internal request id
     transaction_id = db.Column(db.String(255))
+
+    # Gateway order id
+    gateway_order_id = db.Column(db.String(255))
+
+    # Gateway transaction id
+    gateway_transaction_id = db.Column(db.String(255))
+
     paid_at = db.Column(db.DateTime)
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    gateway_response = db.Column(db.Text)
