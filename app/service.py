@@ -1,9 +1,14 @@
 from datetime import datetime
 
+from flask import current_app
+
+from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.models import RoleEnum, EventStatus, TicketType, TicketStatus, OrderStatus
+from app.models import RoleEnum, EventStatus, TicketType, TicketStatus, OrderStatus, Order
 from app import dao, db
 import cloudinary.uploader
+
+
 
 # --- USER SERVICES ---
 
@@ -481,64 +486,169 @@ def process_booking(user_id, ticket_type_id, quantity):
         }
 
 
-
 def cancel_order_service(order_id, user_id):
     try:
         order = dao.get_order_by_id(order_id)
-
         if not order or order.user_id != user_id:
             return False, "Đơn hàng không tồn tại."
 
         if order.status == OrderStatus.CANCELLED:
             return False, "Đơn hàng đã được hủy rồi."
 
-        # Duyệt qua các item để giải phóng từng vé
         for item in order.items:
             ticket = item.ticket
             if ticket:
-                # 1. Trả trạng thái vé về AVAILABLE
+                # 1. Hoàn trạng thái vé
                 ticket.status = TicketStatus.AVAILABLE
 
-                # 2. Giảm sold_quantity trong TicketType tương ứng
+                # 2. Hoàn số lượng cho kho
                 if ticket.ticket_type:
                     ticket.ticket_type.sold_quantity -= 1
 
-        # 3. Chuyển trạng thái Order
+            # 3. QUAN TRỌNG: Xóa item này để không bị lỗi Unique khi mua lại vé này
+            db.session.delete(item)
+
         order.status = OrderStatus.CANCELLED
-
         db.session.commit()
-        return True, "Hủy đơn thành công. Vé đã được hoàn lại kho."
+        return True, "Hủy đơn và giải phóng vé thành công."
     except Exception as e:
         db.session.rollback()
         return False, str(e)
 
-def process_payment_service(order_id, user_id, payment_method):
-    try:
-        order = dao.get_order_for_payment(order_id)
 
-        # 1. Kiểm tra đơn hàng
-        if not order or order.user_id != user_id:
-            return False, "Đơn hàng không hợp lệ."
+from app import create_app
 
-        if order.status == OrderStatus.PAID:
-            return False, "Đơn hàng này đã được thanh toán rồi."
 
-        # 2. Kiểm tra thời hạn thanh toán (Ví dụ: Lâm chỉ cho giữ vé trong 10 phút)
-        # Giả sử Lâm có trường created_at trong Order
-        # if (datetime.utcnow() - order.created_at).minutes > 10:
-        #    return False, "Giao dịch đã hết hạn thanh toán."
+def auto_cancel_order(order_id):
+    # Lấy đối tượng app thực sự từ proxy current_app
 
-        # 3. Gọi API thanh toán (Zalopay/VNPAY/Momo) ở đây nếu cần
-        # Ở bước này, mình giả định thanh toán giả lập hoặc thành công
-        payment_success = True
+    with create_app().app_context():
+        print(f"--- ĐANG THỰC THI HỦY ĐƠN #{order_id} ---")
+        try:
+            # Truy vấn đơn hàng
+            order = Order.query.get(order_id)
 
-        if payment_success:
-            dao.complete_payment_db(order, payment_method)
-            db.session.commit()
-            return True, "Thanh toán thành công! Chúc Lâm xem show vui vẻ."
+            # Kiểm tra trạng thái bằng .name hoặc giá trị Enum
+            if order and order.status == OrderStatus.PENDING:
+                for item in order.items:
+                    # 1. Trả lại trạng thái vé trống
+                    item.ticket.status = TicketStatus.AVAILABLE
 
-        return False, "Thanh toán thất bại từ phía ngân hàng."
+                    # 2. Hoàn lại số lượng đã bán cho loại vé (Chống tranh chấp)
+                    if item.ticket.ticket_type:
+                        item.ticket.ticket_type.sold_quantity -= 1
 
-    except Exception as e:
-        db.session.rollback()
-        return False, str(e)
+                    # 3. Xóa OrderItem để tránh lỗi Duplicate entry '27'
+                    db.session.delete(item)
+
+                # 4. Cập nhật trạng thái đơn hàng thành CANCELLED
+                order.status = OrderStatus.CANCELLED
+
+                db.session.commit()
+                print(f"--- THÀNH CÔNG: Đã hủy đơn #{order_id} và giải phóng vé ---")
+            else:
+                print(f"--- BỎ QUA: Đơn #{order_id} không còn ở trạng thái chờ ---")
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"--- LỖI HỆ THỐNG KHI HỦY: {str(e)} ---")
+
+# def process_payment_service(order_id, user_id, payment_method):
+#     try:
+#         order = dao.get_order_for_payment(order_id)
+#
+#         # 1. Kiểm tra đơn hàng
+#         if not order or order.user_id != user_id:
+#             return False, "Đơn hàng không hợp lệ."
+#
+#         if order.status == OrderStatus.PAID:
+#             return False, "Đơn hàng này đã được thanh toán rồi."
+#
+#         # 2. Kiểm tra thời hạn thanh toán (Ví dụ: Lâm chỉ cho giữ vé trong 10 phút)
+#         # Giả sử Lâm có trường created_at trong Order
+#         # if (datetime.utcnow() - order.created_at).minutes > 10:
+#         #    return False, "Giao dịch đã hết hạn thanh toán."
+#
+#         # 3. Gọi API thanh toán (Zalopay/VNPAY/Momo) ở đây nếu cần
+#         # Ở bước này, mình giả định thanh toán giả lập hoặc thành công
+#         payment_success = True
+#
+#         if payment_success:
+#             dao.complete_payment_db(order, payment_method)
+#             db.session.commit()
+#             return True, "Thanh toán thành công! Chúc Lâm xem show vui vẻ."
+#
+#         return False, "Thanh toán thất bại từ phía ngân hàng."
+#
+#     except Exception as e:
+#         db.session.rollback()
+#         return False, str(e)
+
+import hashlib
+import hmac
+import json
+import requests
+import uuid
+
+
+def create_momo_payment(order_id, amount, order_info):
+    momo_config = {
+        'partner_code': 'MOMO',
+        'access_key': 'F8B6Eu7sL9gy97h7',
+        'secret_key': 'K97U9Gv9E9ef968hi98X6o57vr7s366C',
+        'endpoint': 'https://test-payment.momo.vn/v2/gateway/api/create',
+        'return_url': 'http://127.0.0.1:5000/payment/momo-confirm',
+        'notify_url': 'http://127.0.0.1:5000/payment/momo-ipn'
+    }
+
+    # 1. Chuẩn hóa dữ liệu
+    int_amount = int(amount)
+    request_id = str(uuid.uuid4())
+    order_id_momo = f"{order_id}-{request_id[:8]}"
+    request_type = "captureWallet"
+    extra_data = ""
+    safe_info = order_info.replace("#", "").strip()
+
+    # 2. Tạo chuỗi Raw Hash (Lưu ý: amount trong chuỗi băm phải là dạng chuỗi số)
+    raw_signature = (
+        f"accessKey={momo_config['access_key']}"
+        f"&amount={int_amount}"
+        f"&extraData={extra_data}"
+        f"&ipnUrl={momo_config['notify_url']}"
+        f"&orderId={order_id_momo}"
+        f"&orderInfo={safe_info}"
+        f"&partnerCode={momo_config['partner_code']}"
+        f"&redirectUrl={momo_config['return_url']}"
+        f"&requestId={request_id}"
+        f"&requestType={request_type}"
+    )
+
+    # ĐƯA LỆNH PRINT RA ĐÂY ĐỂ DEBUG
+    print(f"--- DEBUG RAW STRING ---\n{raw_signature}\n------------------------")
+
+    # 3. Ký HMAC-SHA256
+    signature = hmac.new(
+        momo_config['secret_key'].encode('utf-8'),
+        raw_signature.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+    # 4. Payload gửi đi
+    payload = {
+        "partnerCode": momo_config['partner_code'],
+        "partnerName": "Test Payment",
+        "storeId": "MomoStore",
+        "requestId": request_id,
+        "amount": int(amount),
+        "orderId": order_id_momo,
+        "orderInfo": safe_info,
+        "redirectUrl": momo_config['return_url'],
+        "ipnUrl": momo_config['notify_url'],
+        "lang": "vi",
+        "extraData": extra_data,
+        "requestType": request_type,
+        "signature": signature
+    }
+
+    response = requests.post(momo_config['endpoint'], json=payload)
+    return response.json()

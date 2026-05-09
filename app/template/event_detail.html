@@ -27,7 +27,10 @@
                     {% endif %}
                 </div>
                 <div class="col-md-7">
-                    <img src="{{ event.image_banner }}" class="w-100 h-100 object-fit-cover">
+                    <!-- Khóa khung hình ở tỉ lệ 16:9 -->
+                    <div class="ratio ratio-16x9 h-100">
+                        <img src="{{ event.image_banner }}" class="object-fit-cover">
+                    </div>
                 </div>
             </div>
         </div>
@@ -110,19 +113,19 @@
 {% endblock %}
 
 <script>
-function scrollToTickets() {
-    const section = document.getElementById('tickets-section');
-    if (section) {
-        section.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
+    function scrollToTickets() {
+        const section = document.getElementById('tickets-section');
+        if (section) {
+            section.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
 
-        // Tạo hiệu ứng highlight nhẹ để khách biết cần chọn ở đâu
-        section.classList.add('highlight-focus');
-        setTimeout(() => section.classList.remove('highlight-focus'), 1500);
+            // Tạo hiệu ứng highlight nhẹ để khách biết cần chọn ở đâu
+            section.classList.add('highlight-focus');
+            setTimeout(() => section.classList.remove('highlight-focus'), 1500);
+        }
     }
-}
 </script>
 
 <style>

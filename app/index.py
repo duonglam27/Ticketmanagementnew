@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import render_template, request, redirect, url_for, flash, abort
+from flask import render_template, request, redirect, url_for, flash, abort, current_app
 from flask_login import login_user as flask_login_user, logout_user, current_user, login_required
-from app import dao, login, service
+from app import dao, login, service, scheduler
+from app.models import Order
 
 
 def init_routes(app):
@@ -185,7 +186,6 @@ def init_routes(app):
     @app.route('/order/create', methods=['POST'])
     @login_required
     def create_order():
-        # 1. Lấy và kiểm tra dữ liệu đầu vào
         ticket_type_id = request.form.get('ticket_type_id', type=int)
         quantity = request.form.get('quantity', default=1, type=int)
 
@@ -193,9 +193,8 @@ def init_routes(app):
             flash("Thông tin đặt vé không hợp lệ.", "warning")
             return redirect(request.referrer or url_for('home'))
 
-        # 2. Gọi Service để xử lý Transaction
         try:
-            # Đảm bảo logic "Atomic" trong Service (tất cả thành công hoặc tất cả thất bại)
+            # 1. Gọi Service (Nơi đã dùng with_for_update để chặn tranh chấp vé cuối)
             result = service.process_booking(
                 user_id=current_user.id,
                 ticket_type_id=ticket_type_id,
@@ -203,35 +202,54 @@ def init_routes(app):
             )
 
             if result['status'] == 'success':
-                flash("Giữ chỗ thành công! Vui lòng hoàn tất thanh toán.", "success")
-                # Redirect đến trang thanh toán hoặc chi tiết đơn hàng
-                return redirect(url_for('order_detail', order_id=result['order_id']))
+                order_id = result['order_id']
+
+
+                timeout = app.config.get('ORDER_TIMEOUT_MINUTES', 3)
+
+                run_time = datetime.utcnow() + timedelta(minutes=timeout)
+
+                # Hẹn giờ chạy hàm auto_cancel_order
+                scheduler.add_job(
+                    id=f'cancel_order_{order_id}',
+                    func=service.auto_cancel_order,
+                    trigger='date',
+                    run_date=run_time,
+                    args=[order_id]  # Truyền order_id vào hàm hủy
+                )
+                # ------------------------------------
+
+                flash(f"Giữ chỗ thành công! Bạn có {timeout} phút để thanh toán.", "success")
+                return redirect(url_for('order_detail', order_id=order_id))
+
             else:
-                # Lỗi nghiệp vụ (hết vé, sai loại vé...)
                 flash(result['message'], "danger")
                 return redirect(request.referrer or url_for('home'))
 
         except Exception as e:
-            # Log lỗi để dev kiểm tra, nhưng hiển thị thông báo thân thiện cho khách
             app.logger.error(f"Order Creation Error: {str(e)}")
             flash("Hệ thống đang bận, vui lòng thử lại sau giây lát.", "danger")
             return redirect(request.referrer or url_for('home'))
 
     @app.route('/order/<int:order_id>')
-    @login_required
     def order_detail(order_id):
-        # Gọi DAO đã tối ưu
         order = dao.get_order_by_id(order_id)
+        remaining_seconds = 0
 
-        # Kiểm tra bảo mật: Không cho phép xem đơn hàng của người khác
-        if not order:
-            flash("Không tìm thấy đơn hàng.", "danger")
-            return redirect(url_for('home'))
+        if order.status.name == 'PENDING':
+            timeout_mins = current_app.config.get('ORDER_TIMEOUT_MINUTES', 1)
 
-        if order.user_id != current_user.id:
-            abort(403)  # Quyền truy cập bị từ chối
+            # Dùng utcnow() để so sánh với order.created_at (cũng là UTC)
+            now = datetime.utcnow()
+            expiry_time = order.created_at + timedelta(minutes=timeout_mins)
 
-        return render_template('orders.html', order=order)
+            diff = (expiry_time - now).total_seconds()
+            remaining_seconds = max(0, int(diff))
+
+            # Kiểm tra Log: Nếu diff dương (ví dụ: 59) là chuẩn!
+            print(f"DEBUG: Created At: {order.created_at} | Now UTC: {now} | Diff: {diff}")
+
+        return render_template('orders.html', order=order, remaining=remaining_seconds)
 
     @app.route('/order/cancel/<int:order_id>', methods=['POST'])
     @login_required
@@ -244,17 +262,33 @@ def init_routes(app):
         # để quay lại trang trước đó người dùng đang đứng
         return redirect(request.referrer or url_for('home'))
 
-    @app.route('/order/process-payment/<int:order_id>', methods=['POST'])
-    @login_required
-    def process_payment(order_id):
-        method = request.form.get('payment_method', 'CASH')
-        success, message = service.process_payment_service(order_id, current_user.id, method)
+    # @app.route('/order/process-payment/<int:order_id>', methods=['POST'])
+    # @login_required
+    # def process_payment(order_id):
+    #     method = request.form.get('payment_method', 'CASH')
+    #     success, message = service.process_payment_service(order_id, current_user.id, method)
+    #
+    #     if success:
+    #         flash(message, "success")
+    #         # Ví dụ: return redirect(url_for('my_tickets'))
+    #         return redirect(url_for('home'))  # Tạm thời về Home
+    #     else:
+    #         flash(message, "danger")
+    #         # Quay lại trang thanh toán để họ chọn lại phương thức payment
+    #         return redirect(url_for('checkout', order_id=order_id))
 
-        if success:
-            flash(message, "success")
-            # Ví dụ: return redirect(url_for('my_tickets'))
-            return redirect(url_for('home'))  # Tạm thời về Home
+
+    @app.route('/payment/momo/<int:order_id>', methods=['POST', 'GET'])
+    def pay_with_momo(order_id):
+        order = Order.query.get_or_404(order_id)
+
+        # Test với chuỗi cực kỳ đơn giản trước
+        msg = f"Thanhtoandonhang{order.id}"
+
+        result = service.create_momo_payment(order.id, int(order.total_amount), msg)
+
+        if result.get('resultCode') == 0:
+            return redirect(result.get('payUrl'))
         else:
-            flash(message, "danger")
-            # Quay lại trang thanh toán để họ chọn lại phương thức payment
-            return redirect(url_for('checkout', order_id=order_id))
+            # Nếu vẫn lỗi, in chuỗi raw_signature ra console để đối soát
+            return f"Lỗi MoMo: {result.get('message')}. Chi tiết: {result}", 400

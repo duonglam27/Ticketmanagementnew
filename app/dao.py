@@ -520,10 +520,12 @@ def get_order_by_id(order_id):
     return Order.query.options(
         joinedload(Order.items)
             .joinedload(OrderItem.ticket)
-            .joinedload(Ticket.ticket_type),
+            .joinedload(Ticket.ticket_type)
+            .joinedload(TicketType.showing) # Load thêm Showing
+            .joinedload(Showing.event),     # Load thêm Event để hiện tên show
         joinedload(Order.items)
             .joinedload(OrderItem.ticket)
-            .joinedload(Ticket.seat) # Đảm bảo load thông tin ghế ở đây
+            .joinedload(Ticket.seat)
     ).get(order_id)
 
 
@@ -607,15 +609,9 @@ def get_user_orders(user_id):
 
 
 def get_available_tickets_by_type(ticket_type_id, limit):
-    """
-    Lấy danh sách vé còn trống và sử dụng 'with_for_update'
-    để khóa các bản ghi này lại trong Transaction hiện tại.
-    """
     return Ticket.query.filter(
-        and_(
-            Ticket.ticket_type_id == ticket_type_id,
-            Ticket.status == TicketStatus.AVAILABLE
-        )
+        Ticket.ticket_type_id == ticket_type_id,
+        Ticket.status == TicketStatus.AVAILABLE # Chỉ lấy vé có trạng thái sẵn sàng
     ).limit(limit).with_for_update().all()
 
 
@@ -623,16 +619,16 @@ def get_available_tickets_by_type(ticket_type_id, limit):
 def get_order_for_payment(order_id):
     return Order.query.get(order_id)
 
-def complete_payment_db(order, payment_method):
-    """Cập nhật trạng thái sau khi thanh toán thành công"""
-    order.status = OrderStatus.PAID
-    order.payment_method = payment_method
-    order.paid_at = datetime.utcnow()
 
-    # Chuyển trạng thái từng vé trong đơn hàngh
-    for ticket in order.tickets:
-        ticket.status = TicketStatus.SOLD
-        ticket.locked_until = None  # Giải phóng thời gian khóa
+def complete_payment_db(order, payment_method):
+    order.status = OrderStatus.PAID
+    order.payment_method = payment_method  # Lưu ý: Model Order chưa có cột này, Lâm nên thêm vào hoặc lưu vào bảng Payment
+
+    # Duyệt qua items thay vì tickets trực tiếp
+    for item in order.items:
+        if item.ticket:
+            item.ticket.status = TicketStatus.SOLD
+            item.ticket.locked_until = None
 
     db.session.add(order)
     return order

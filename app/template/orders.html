@@ -11,7 +11,7 @@
                     <p class="text-secondary mb-3">Vui lòng hoàn tất thanh toán để giữ chỗ của bạn.</p>
                     <div class="d-inline-block bg-secondary bg-opacity-25 rounded-pill px-4 py-2 border border-warning">
                         <i class="fas fa-clock me-2 text-warning"></i>
-                        Thời gian còn lại: <span id="countdown" class="fw-bold">15:00</span>
+                        Thời gian còn lại: <span id="countdown" class="fw-bold">5:00</span>
                     </div>
                     {% elif order.status.name == 'PAID' %}
                     <h4 class="text-success fw-bold mb-0"><i class="fas fa-check-circle me-2"></i>Thanh toán thành công
@@ -78,9 +78,12 @@
                                 </form>
                             </div>
                             <div class="col-md-6">
-                                <form action="{{ url_for('process_payment', order_id=order.id) }}" method="POST">
-                                    <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
-                                        THANH TOÁN NGAY
+                                <!-- Ví dụ nút bấm trong file template của Lâm -->
+                                <form action="{{ url_for('pay_with_momo', order_id=order.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <img src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png"
+                                             width="20" class="me-2">
+                                        Thanh toán ngay bằng MoMo
                                     </button>
                                 </form>
                             </div>
@@ -96,7 +99,7 @@
 <script>
     function startTimer(duration, display) {
         var timer = duration, minutes, seconds;
-        setInterval(function () {
+        var interval = setInterval(function () {
             minutes = parseInt(timer / 60, 10);
             seconds = parseInt(timer % 60, 10);
 
@@ -106,15 +109,23 @@
             display.textContent = minutes + ":" + seconds;
 
             if (--timer < 0) {
-                location.reload(); // Tự động reload để cập nhật trạng thái CANCELLED khi hết hạn
+                clearInterval(interval);
+                location.reload(); // Reload để Backend xác nhận đã hủy
             }
         }, 1000);
     }
 
     window.onload = function () {
-        var fifteenMinutes = 60 * 15,
-            display = document.querySelector('#countdown');
-        if(display) startTimer(fifteenMinutes, display);
+        // Lấy số giây còn lại từ biến 'remaining' mà Backend truyền sang
+        // Nếu không có (đơn đã hủy/thanh toán), mặc định là 0
+        var remainingSeconds = {{ remaining | default(0) }};
+        var display = document.querySelector('#countdown');
+
+        if (display && remainingSeconds > 0) {
+            startTimer(remainingSeconds, display);
+        } else if (display) {
+            display.textContent = "00:00";
+        }
     };
 </script>
 {% endblock %}
