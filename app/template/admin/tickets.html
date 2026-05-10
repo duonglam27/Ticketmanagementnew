@@ -1,39 +1,56 @@
 {% extends 'admin/baseadmin.html' %}
 
-{% block page_title %}Vé & Check-in{% endblock %}
+{% block page_title %}Quản lý vé{% endblock %}
 
 {% block content %}
 
-<div class="container-fluid">
+<div class="card shadow-sm">
+    <div class="card-body">
 
-    <table class="table">
-        <thead>
+        <table class="table table-hover align-middle">
+            <thead>
             <tr>
-                <th>Mã vé</th>
+                <th>ID</th>
+                <th>Người sở hữu</th>
                 <th>Trạng thái</th>
                 <th>Check-in</th>
+                <th></th>
             </tr>
-        </thead>
+            </thead>
 
-        <tbody>
-        {% for t in tickets %}
+            <tbody>
+            {% for t in tickets %}
             <tr>
-                <td>{{ t.ticket_code }}</td>
-                <td>{{ t.status.value }}</td>
+                <td>#{{ t.id }}</td>
+                <
                 <td>
-                    {% if not t.checked_in %}
-                        <a href="{{ url_for('admin.checkin', ticket_id=t.id) }}"
-                           class="btn btn-success btn-sm">Check-in</a>
+                    {% if t.order and t.order.user %}
+                    {{ t.order.user.name }}
                     {% else %}
-                        <span class="text-success">✔</span>
+                    Không có user
                     {% endif %}
                 </td>
+                <td>{{ t.status.value }}</td>
+                <td>
+                    {% if t.checked_in %}
+                    <span class="badge bg-success">Đã check-in</span>
+                    {% else %}
+                    <span class="badge bg-warning">Chưa check-in</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('admin.checkin', ticket_id=t.id) }}"
+                       class="btn btn-sm btn-primary">
+                        Check-in
+                    </a>
+                </td>
             </tr>
-        {% endfor %}
-        </tbody>
+            {% endfor %}
+            </tbody>
 
-    </table>
+        </table>
 
+    </div>
 </div>
 
 {% endblock %}

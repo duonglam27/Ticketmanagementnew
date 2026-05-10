@@ -61,6 +61,7 @@ class User(db.Model, UserMixin):
     role = db.Column(db.Enum(RoleEnum), default=RoleEnum.USER)
     avatar = db.Column(db.String(255), default='/static/SystemPicture/avatardefault.jpg')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    active = db.Column(db.Boolean, default=True)
 
     events = relationship('Event', backref='organizer')
     orders = relationship('Order', backref='user')
@@ -82,6 +83,10 @@ class User(db.Model, UserMixin):
         role: 'admin', 'user', 'organizer'
         """
         return self.role.value == role
+
+    @property
+    def is_active(self):
+        return self.active
 
 # =========================
 # EVENT

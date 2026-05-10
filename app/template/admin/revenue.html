@@ -1,16 +1,52 @@
 {% extends 'admin/baseadmin.html' %}
 
-{% block page_title %}Doanh thu{% endblock %}
+{% block page_title %}Thống kê doanh thu{% endblock %}
 
 {% block content %}
 
-<div class="container-fluid">
+<div class="row g-3 mb-4">
 
-    <div class="card p-4 shadow-sm">
-        <h5>Tổng doanh thu</h5>
-        <h2 class="text-success">{{ total_revenue }} VND</h2>
+    <div class="col-md-4">
+        <div class="card dashboard-card">
+            <div class="card-body">
+                <h6>Tổng doanh thu</h6>
+                <h3 class="text-success">
+                    {{ '{:,.0f}'.format(total_revenue) }} VND
+                </h3>
+            </div>
+        </div>
     </div>
 
 </div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+
+        <canvas id="revenueChart"></canvas>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('revenueChart');
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_labels|tojson }},
+        datasets: [{
+            label: 'Doanh thu',
+            data: {{ chart_values|tojson }},
+            borderWidth: 2
+        }]
+    }
+});
+</script>
 
 {% endblock %}

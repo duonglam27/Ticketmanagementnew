@@ -1,76 +1,132 @@
+
 {% extends 'admin/baseadmin.html' %}
 
-{% block page_title %}Quản lý sự kiện{% endblock %}
+{% block page_title %}
+Quản lý sự kiện
+{% endblock %}
 
 {% block content %}
 
-<div class="container-fluid">
+<div class="card shadow-sm">
+    <div class="card-body">
 
-    <!-- FILTER -->
-    <form method="get" class="row g-2 mb-3">
-        <div class="col-md-3">
-            <input type="text" name="kw" class="form-control" placeholder="Tìm sự kiện...">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>Danh sách sự kiện</h4>
+
+            <form method="GET" class="d-flex gap-2">
+
+                <select name="status" class="form-select">
+                    <option value="">-- Trạng thái --</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+
+                <button class="btn btn-primary">
+                    Lọc
+                </button>
+
+            </form>
         </div>
 
-        <div class="col-md-3">
-            <select name="status" class="form-select">
-                <option value="">-- Trạng thái --</option>
-                <option value="pending">Chờ duyệt</option>
-                <option value="approved">Đã duyệt</option>
-                <option value="rejected">Từ chối</option>
-            </select>
-        </div>
+        <table class="table table-hover align-middle">
 
-        <div class="col-md-2">
-            <button class="btn btn-primary w-100">Lọc</button>
-        </div>
-    </form>
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Tên sự kiện</th>
+                    <th>Organizer</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Ngày tạo</th>
+                    <th width="260"></th>
+                </tr>
+            </thead>
 
-    <!-- TABLE -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tên</th>
-                        <th>Danh mục</th>
-                        <th>Trạng thái</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
+            <tbody>
 
-                <tbody>
-                {% for e in events %}
-                    <tr>
-                        <td>{{ e.id }}</td>
-                        <td>{{ e.name }}</td>
-                        <td>{{ e.category }}</td>
+            {% for e in events %}
+                <tr>
 
-                        <td>
-                            <span class="badge 
-                                {% if e.status.value == 'pending' %}bg-warning
-                                {% elif e.status.value == 'approved' %}bg-success
-                                {% else %}bg-danger
-                                {% endif %}">
-                                {{ e.status.value }}
-                            </span>
-                        </td>
+                    <td>{{ e.id }}</td>
 
-                        <td>
-                            {% if e.status.value == 'pending' %}
-                                <a href="{{ url_for('admin.approve_event', event_id=e.id) }}" class="btn btn-success btn-sm">✔</a>
-                                <a href="{{ url_for('admin.reject_event', event_id=e.id) }}" class="btn btn-danger btn-sm">✖</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
+                    <td>
+                        <strong>{{ e.title }}</strong>
+                    </td>
 
-            </table>
-        </div>
+                    <td>
+                        {{ e.organizer.name }}
+                    </td>
+
+                    <td>
+                        {{ e.category }}
+                    </td>
+
+                    <td>
+
+                        <span class="badge
+                        {% if e.status.value == 'approved' %}
+                            bg-success
+                        {% elif e.status.value == 'pending' %}
+                            bg-warning
+                        {% elif e.status.value == 'rejected' %}
+                            bg-danger
+                        {% else %}
+                            bg-secondary
+                        {% endif %}
+                        ">
+                            {{ e.status.value }}
+                        </span>
+
+                    </td>
+
+                    <td>
+                        {{ e.created_at.strftime('%d/%m/%Y') }}
+                    </td>
+
+                    <td>
+
+                        <a href="{{ url_for('admin.event_detail_admin', event_id=e.id) }}"
+                           class="btn btn-sm btn-info">
+                            Chi tiết
+                        </a>
+
+                        <a href="{{ url_for('admin.approve_event', event_id=e.id) }}"
+                           class="btn btn-sm btn-success">
+                            Duyệt
+                        </a>
+
+                        <a href="{{ url_for('admin.reject_event', event_id=e.id) }}"
+                           class="btn btn-sm btn-warning">
+                            Từ chối
+                        </a>
+
+                        <a href="{{ url_for('admin.delete_event_admin', event_id=e.id) }}"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Xóa sự kiện này?')">
+                            Xóa
+                        </a>
+
+                    </td>
+
+                </tr>
+
+            {% else %}
+
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        Không có sự kiện
+                    </td>
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
     </div>
-
 </div>
 
 {% endblock %}

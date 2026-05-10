@@ -1,0 +1,295 @@
+{% extends 'admin/baseadmin.html' %}
+
+{% block page_title %}
+Chi tiết người dùng
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <div class="row">
+
+        <!-- LEFT -->
+        <div class="col-md-4">
+
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+
+                    <img src="{{ user.avatar }}"
+                         class="rounded-circle mb-3"
+                         width="120"
+                         height="120"
+                         style="object-fit:cover;">
+
+                    <h4>{{ user.name }}</h4>
+
+                    <p class="text-muted">
+                        {{ user.email }}
+                    </p>
+
+                    <span class="badge
+                        {% if user.role.value == 'admin' %}
+                            bg-danger
+                        {% elif user.role.value == 'organizer' %}
+                            bg-primary
+                        {% else %}
+                            bg-secondary
+                        {% endif %}
+                    ">
+                        {{ user.role.value }}
+                    </span>
+
+                    <hr>
+
+                    <p>
+
+                        {% if user.is_active %}
+                            <span class="text-success">
+                                ● Active
+                            </span>
+                        {% else %}
+                            <span class="text-danger">
+                                ● Locked
+                            </span>
+                        {% endif %}
+
+                    </p>
+
+                    <div class="d-grid gap-2 mt-4">
+
+                        <a href="{{ url_for('admin.toggle_user', user_id=user.id) }}"
+                           class="btn btn-warning">
+
+                            {% if user.is_active %}
+                                Khóa tài khoản
+                            {% else %}
+                                Mở khóa tài khoản
+                            {% endif %}
+
+                        </a>
+
+                        <a href="{{ url_for('admin.delete_user', user_id=user.id) }}"
+                           class="btn btn-danger"
+                           onclick="return confirm('Xóa user này?')">
+                            Xóa user
+                        </a>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT -->
+        <div class="col-md-8">
+
+            <!-- EDIT -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+
+                    <h5 class="mb-3">
+                        Chỉnh sửa thông tin
+                    </h5>
+
+                    <form method="POST">
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Tên
+                            </label>
+
+                            <input type="text"
+                                   name="name"
+                                   value="{{ user.name }}"
+                                   class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Email
+                            </label>
+
+                            <input type="email"
+                                   name="email"
+                                   value="{{ user.email }}"
+                                   class="form-control">
+                        </div>
+
+                        <button class="btn btn-success">
+                            Cập nhật
+                        </button>
+
+                    </form>
+
+                </div>
+            </div>
+
+            <!-- USER ORDERS -->
+            {% if user.role.value == 'user' %}
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <h5 class="mb-3">
+                        Lịch sử đơn hàng
+                    </h5>
+
+                    <table class="table table-hover">
+
+                        <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Tổng tiền</th>
+                            <th>Trạng thái</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+
+                        <tbody>
+
+                        {% for o in orders %}
+
+                            <tr>
+
+                                <td>#{{ o.id }}</td>
+
+                                <td class="text-success">
+                                    {{ o.total_amount }} VND
+                                </td>
+
+                                <td>
+
+                                    <span class="badge
+                                        {% if o.status.value == 'paid' %}
+                                            bg-success
+                                        {% elif o.status.value == 'pending' %}
+                                            bg-warning
+                                        {% else %}
+                                            bg-danger
+                                        {% endif %}
+                                    ">
+                                        {{ o.status.value }}
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <a href="{{ url_for('admin.order_detail', order_id=o.id) }}"
+                                       class="btn btn-sm btn-primary">
+                                        Xem
+                                    </a>
+
+                                </td>
+
+                            </tr>
+
+                        {% else %}
+
+                            <tr>
+                                <td colspan="4"
+                                    class="text-center text-muted">
+                                    Chưa có đơn hàng
+                                </td>
+                            </tr>
+
+                        {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            </div>
+
+            {% endif %}
+
+            <!-- ORGANIZER EVENTS -->
+            {% if user.role.value == 'organizer' %}
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <h5 class="mb-3">
+                        Sự kiện đã tạo
+                    </h5>
+
+                    <table class="table table-hover">
+
+                        <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên sự kiện</th>
+                            <th>Trạng thái</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+
+                        <tbody>
+
+                        {% for e in events %}
+
+                            <tr>
+
+                                <td>#{{ e.id }}</td>
+
+                                <td>
+                                    {{ e.title }}
+                                </td>
+
+                                <td>
+
+                                    <span class="badge
+                                        {% if e.status.value == 'approved' %}
+                                            bg-success
+                                        {% elif e.status.value == 'pending' %}
+                                            bg-warning
+                                        {% else %}
+                                            bg-danger
+                                        {% endif %}
+                                    ">
+                                        {{ e.status.value }}
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <a href="{{ url_for('admin.event_detail_admin', event_id=e.id) }}"
+                                       class="btn btn-sm btn-primary">
+                                        Xem
+                                    </a>
+
+                                </td>
+
+                            </tr>
+
+                        {% else %}
+
+                            <tr>
+                                <td colspan="4"
+                                    class="text-center text-muted">
+                                    Chưa có sự kiện nào
+                                </td>
+                            </tr>
+
+                        {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
